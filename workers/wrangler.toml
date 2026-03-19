@@ -1,0 +1,37 @@
+name = "rss-plus-api"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 数据库
+[[d1_databases]]
+binding = "DB"
+database_name = "rss-reader-db"
+database_id = "placeholder-replace-with-real-id"
+
+# R2 存储桶
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "rss-plus-assets"
+
+# KV 命名空间
+[[kv_namespaces]]
+binding = "KV"
+id = "placeholder-replace-with-real-id"
+
+# 环境变量
+[vars]
+R2_PUBLIC_URL = "https://assets.example.com"
+FRONTEND_URL = "https://rss-plus.pages.dev"
+
+# 密钥 (通过 wrangler secret put JWT_SECRET 设置)
+
+# 定时任务
+[triggers]
+crons = ["*/15 * * * *", "0 3 * * *"]
+
+# 开发环境配置
+[env.development]
+[env.development.vars]
+R2_PUBLIC_URL = "http://localhost:8787/r2"
+FRONTEND_URL = "http://localhost:5173"
