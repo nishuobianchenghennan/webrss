@@ -1,0 +1,39 @@
+name = "rss-plus-api"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 数据库
+# database_id 通过 GitHub Secret CF_D1_DATABASE_ID 在 CI 部署时动态注入
+[[d1_databases]]
+binding = "DB"
+database_name = "rss-reader-db"
+database_id = "placeholder"
+
+# R2 存储桶
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "rss-plus-assets"
+
+# KV 命名空间
+# id 通过 GitHub Secret CF_KV_NAMESPACE_ID 在 CI 部署时动态注入
+[[kv_namespaces]]
+binding = "KV"
+id = "placeholder"
+
+# 环境变量（敏感值通过 GitHub Secrets 在 CI 中注入，见 deploy.yml）
+[vars]
+R2_PUBLIC_URL = "placeholder"
+FRONTEND_URL = "placeholder"
+
+# JWT_SECRET 通过 wrangler secret put 或 Cloudflare 控制台设置，不写在此文件
+
+# 定时任务
+[triggers]
+crons = ["*/15 * * * *", "0 3 * * *"]
+
+# 本地开发环境（仅本地使用，不部署）
+[env.development]
+[env.development.vars]
+R2_PUBLIC_URL = "http://localhost:8787/r2"
+FRONTEND_URL = "http://localhost:5173"
