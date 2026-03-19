@@ -7,7 +7,7 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "rss-reader-db"
-database_id = "placeholder-replace-with-real-id"
+database_id = "0b186b3e-bc0f-4879-b4d5-62b6cc259c4c"
 
 # R2 存储桶
 [[r2_buckets]]
@@ -17,11 +17,11 @@ bucket_name = "rss-plus-assets"
 # KV 命名空间
 [[kv_namespaces]]
 binding = "KV"
-id = "placeholder-replace-with-real-id"
+id = "9e777b57dadf4f009bf795fb52255f5f"
 
 # 环境变量
 [vars]
-R2_PUBLIC_URL = "https://assets.example.com"
+R2_PUBLIC_URL = "https://pub-9b6cd3345b054bf587db6d138694cd63.r2.dev"
 FRONTEND_URL = "https://rss-plus.pages.dev"
 
 # 密钥 (通过 wrangler secret put JWT_SECRET 设置)
