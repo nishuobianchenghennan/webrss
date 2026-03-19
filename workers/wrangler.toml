@@ -1,38 +1,34 @@
-name = "rss-plus-api"
+name = "placeholder-worker-name"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
-# D1 数据库
-# database_id 通过 GitHub Secret CF_D1_DATABASE_ID 在 CI 部署时动态注入
+# 所有敏感配置（ID、名称、URL）均通过 GitHub Actions 在部署时动态注入
+# 本文件不包含任何真实的资源 ID 或域名
+
 [[d1_databases]]
 binding = "DB"
-database_name = "rss-reader-db"
-database_id = "placeholder"
+database_name = "placeholder-db-name"
+database_id = "placeholder-db-id"
 
-# R2 存储桶
 [[r2_buckets]]
 binding = "R2_BUCKET"
-bucket_name = "rss-plus-assets"
+bucket_name = "placeholder-bucket-name"
 
-# KV 命名空间
-# id 通过 GitHub Secret CF_KV_NAMESPACE_ID 在 CI 部署时动态注入
 [[kv_namespaces]]
 binding = "KV"
-id = "placeholder"
+id = "placeholder-kv-id"
 
-# 环境变量（敏感值通过 GitHub Secrets 在 CI 中注入，见 deploy.yml）
 [vars]
-R2_PUBLIC_URL = "placeholder"
-FRONTEND_URL = "placeholder"
+R2_PUBLIC_URL = "placeholder-r2-url"
+FRONTEND_URL = "placeholder-frontend-url"
 
-# JWT_SECRET 通过 wrangler secret put 或 Cloudflare 控制台设置，不写在此文件
+# JWT_SECRET 在 Cloudflare 控制台 Workers → Settings → Variables and Secrets 中单独配置
 
-# 定时任务
 [triggers]
 crons = ["*/15 * * * *", "0 3 * * *"]
 
-# 本地开发环境（仅本地使用，不部署）
+# 本地开发环境覆盖（仅本地有效，不影响生产部署）
 [env.development]
 [env.development.vars]
 R2_PUBLIC_URL = "http://localhost:8787/r2"
