@@ -15,9 +15,10 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
+    "types": ["vite/client"],
     "paths": {
       "@/*": ["./src/*"],
-      "@rss-plus/shared": ["../shared/src/index.ts"]
+      "@rss-plus/shared": ["./src/types/index.ts"]
     }
   },
   "include": ["src"],
