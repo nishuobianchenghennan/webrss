@@ -2,7 +2,7 @@ name: Deploy RSS Plus
 
 on:
   push:
-    branches: [gh-pages]
+    branches: [main]
 
 jobs:
   deploy-workers:
@@ -22,7 +22,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
-      # 用 sed 将 wrangler.toml 中的所有占位符替换为真实的 Secret 值
       - name: Inject secrets into wrangler.toml
         working-directory: workers
         run: |
@@ -64,11 +63,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
 
       - name: Install & Build
         run: |
-          pnpm install --frozen-lockfile
+          pnpm install --no-frozen-lockfile
           pnpm build:frontend
         env:
           VITE_API_URL: ${{ secrets.CF_VITE_API_URL }}
