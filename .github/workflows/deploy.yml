@@ -2,7 +2,7 @@ name: Deploy RSS Plus
 
 on:
   push:
-    branches: [main]
+    branches: [main, gh-pages]
 
 jobs:
   deploy-workers:
