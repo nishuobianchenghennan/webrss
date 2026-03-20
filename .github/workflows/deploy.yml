@@ -22,6 +22,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
+      # 用 sed 将 wrangler.toml 中的所有占位符替换为真实的 Secret 值
       - name: Inject secrets into wrangler.toml
         working-directory: workers
         run: |
@@ -65,9 +66,7 @@ jobs:
           node-version: 20
 
       - name: Install & Build
-        run: |
-          pnpm install --no-frozen-lockfile
-          pnpm build:frontend
+        run: cd frontend && npm install --legacy-peer-deps && npm run build
         env:
           VITE_API_URL: ${{ secrets.CF_VITE_API_URL }}
 
