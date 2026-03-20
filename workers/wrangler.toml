@@ -1,35 +1,24 @@
-name = "placeholder-worker-name"
+name = "webrss"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
-# 所有敏感配置（ID、名称、URL）均通过 GitHub Actions 在部署时动态注入
-# 本文件不包含任何真实的资源 ID 或域名
-
 [[d1_databases]]
 binding = "DB"
-database_name = "placeholder-db-name"
-database_id = "placeholder-db-id"
+database_name = "placeholder"
+database_id = "placeholder"
 
 [[r2_buckets]]
 binding = "R2_BUCKET"
-bucket_name = "placeholder-bucket-name"
+bucket_name = "placeholder"
 
 [[kv_namespaces]]
 binding = "KV"
-id = "placeholder-kv-id"
+id = "placeholder"
 
 [vars]
-R2_PUBLIC_URL = "placeholder-r2-url"
-FRONTEND_URL = "placeholder-frontend-url"
-
-# JWT_SECRET 在 Cloudflare 控制台 Workers → Settings → Variables and Secrets 中单独配置
+R2_PUBLIC_URL = "placeholder"
+FRONTEND_URL = "placeholder"
 
 [triggers]
 crons = ["*/15 * * * *", "0 3 * * *"]
-
-# 本地开发环境覆盖（仅本地有效，不影响生产部署）
-[env.development]
-[env.development.vars]
-R2_PUBLIC_URL = "http://localhost:8787/r2"
-FRONTEND_URL = "http://localhost:5173"
