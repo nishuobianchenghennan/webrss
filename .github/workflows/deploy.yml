@@ -1,14 +1,13 @@
-name: Deploy RSS Plus
+name: Deploy Workers
 
 on:
   push:
-    branches: [main, gh-pages]
+    branches: [main]
 
 jobs:
   deploy-workers:
     name: Deploy Workers (Backend)
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
 
@@ -49,26 +48,3 @@ jobs:
           accountId: ${{ secrets.CF_ACCOUNT_ID }}
           command: deploy
           workingDirectory: workers
-
-  deploy-frontend:
-    name: Deploy Frontend (Pages)
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/gh-pages'
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install & Build
-        run: cd frontend && npm install --legacy-peer-deps && npm run build
-        env:
-          VITE_API_URL: ${{ secrets.CF_VITE_API_URL }}
-
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CF_API_TOKEN }}
-          accountId: ${{ secrets.CF_ACCOUNT_ID }}
-          command: pages deploy frontend/dist --project-name=${{ secrets.CF_PAGES_PROJECT_NAME }}
