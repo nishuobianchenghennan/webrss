@@ -11,17 +11,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
-
       - name: Inject secrets into wrangler.toml
         working-directory: workers
         run: |
@@ -40,6 +29,7 @@ jobs:
           accountId: ${{ secrets.CF_ACCOUNT_ID }}
           command: d1 migrations apply ${{ secrets.CF_D1_DB_NAME }} --remote
           workingDirectory: workers
+          packageManager: npm
 
       - name: Deploy Workers
         uses: cloudflare/wrangler-action@v3
@@ -48,3 +38,4 @@ jobs:
           accountId: ${{ secrets.CF_ACCOUNT_ID }}
           command: deploy
           workingDirectory: workers
+          packageManager: npm
