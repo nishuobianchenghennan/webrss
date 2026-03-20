@@ -5,20 +5,20 @@ compatibility_flags = ["nodejs_compat"]
 
 [[d1_databases]]
 binding = "DB"
-database_name = "placeholder"
-database_id = "placeholder"
+database_name = "placeholder-db-name"
+database_id = "placeholder-db-id"
 
 [[r2_buckets]]
 binding = "R2_BUCKET"
-bucket_name = "placeholder"
+bucket_name = "placeholder-bucket-name"
 
 [[kv_namespaces]]
 binding = "KV"
-id = "placeholder"
+id = "placeholder-kv-id"
 
 [vars]
-R2_PUBLIC_URL = "placeholder"
-FRONTEND_URL = "placeholder"
+R2_PUBLIC_URL = "placeholder-r2-url"
+FRONTEND_URL = "placeholder-frontend-url"
 
 [triggers]
 crons = ["*/15 * * * *", "0 3 * * *"]
