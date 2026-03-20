@@ -42,7 +42,7 @@ export default function ReaderPage() {
 
       {/* 第三栏：文章详情 */}
       <div className={cn(
-        'flex-1 min-w-0',
+        'flex-1 min-w-0 h-full flex flex-col',
         !selectedArticleId && 'hidden md:flex'
       )}>
         <ArticleDetail />
