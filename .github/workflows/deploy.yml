@@ -21,7 +21,7 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       # 用 sed 将 wrangler.toml 中的所有占位符替换为真实的 Secret 值
       - name: Inject secrets into wrangler.toml
