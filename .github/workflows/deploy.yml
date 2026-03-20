@@ -1,0 +1,82 @@
+name: Deploy RSS Plus
+
+on:
+  push:
+    branches: [gh-pages]
+
+jobs:
+  deploy-workers:
+    name: Deploy Workers (Backend)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # 用 sed 将 wrangler.toml 中的所有占位符替换为真实的 Secret 值
+      - name: Inject secrets into wrangler.toml
+        working-directory: workers
+        run: |
+          sed -i "s|placeholder-worker-name|${{ secrets.CF_WORKER_NAME }}|g" wrangler.toml
+          sed -i "s|placeholder-db-name|${{ secrets.CF_D1_DB_NAME }}|g" wrangler.toml
+          sed -i "s|placeholder-db-id|${{ secrets.CF_D1_DATABASE_ID }}|g" wrangler.toml
+          sed -i "s|placeholder-bucket-name|${{ secrets.CF_R2_BUCKET_NAME }}|g" wrangler.toml
+          sed -i "s|placeholder-kv-id|${{ secrets.CF_KV_NAMESPACE_ID }}|g" wrangler.toml
+          sed -i "s|placeholder-r2-url|${{ secrets.CF_R2_PUBLIC_URL }}|g" wrangler.toml
+          sed -i "s|placeholder-frontend-url|${{ secrets.CF_FRONTEND_URL }}|g" wrangler.toml
+
+      - name: Run D1 Migrations
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          command: d1 migrations apply ${{ secrets.CF_D1_DB_NAME }} --remote
+          workingDirectory: workers
+
+      - name: Deploy Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          command: deploy
+          workingDirectory: workers
+
+  deploy-frontend:
+    name: Deploy Frontend (Pages)
+    runs-on: ubuntu-latest
+    needs: deploy-workers
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install & Build
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build:frontend
+        env:
+          VITE_API_URL: ${{ secrets.CF_VITE_API_URL }}
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          command: pages deploy frontend/dist --project-name=${{ secrets.CF_PAGES_PROJECT_NAME }}
