@@ -6,7 +6,7 @@
   "scripts": {
     "dev:frontend": "pnpm --filter frontend dev",
     "dev:workers": "pnpm --filter workers dev",
-    "build": "pnpm --filter shared build && pnpm --filter frontend build && pnpm --filter workers build",
+    "build": "cd frontend && npm install --legacy-peer-deps && npm run build",
     "build:frontend": "pnpm --filter frontend build",
     "build:workers": "pnpm --filter workers build",
     "deploy": "pnpm --filter workers deploy && pnpm --filter frontend deploy",
