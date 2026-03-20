@@ -22,7 +22,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
-      # 用 sed 将 wrangler.toml 中的所有占位符替换为真实的 Secret 值
       - name: Inject secrets into wrangler.toml
         working-directory: workers
         run: |
@@ -56,6 +55,7 @@ jobs:
     needs: deploy-workers
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
