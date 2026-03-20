@@ -3,7 +3,7 @@
  */
 
 import { parseFeed } from './feed-parser';
-import type { DiscoveredFeed } from '@rss-plus/shared';
+import type { DiscoveredFeed } from '../types/shared';
 
 /**
  * 从URL自动发现RSS/Atom源

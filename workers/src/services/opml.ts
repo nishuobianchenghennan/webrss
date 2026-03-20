@@ -2,7 +2,7 @@
  * OPML 导入导出服务
  */
 
-import type { OPMLOutline } from '@rss-plus/shared';
+import type { OPMLOutline } from '../types/shared';
 
 /**
  * 解析 OPML 文件内容

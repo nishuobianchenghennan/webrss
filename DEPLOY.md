@@ -286,10 +286,10 @@ Worker 的真实代码通过 GitHub Actions 自动部署，这里只需先创建
 |---|---|
 | **Project name** | 自取（**只能用小写字母、数字和连字符**，如 `my-rss-reader`，记住，后面填入 `CF_PAGES_PROJECT_NAME`） |
 | **Production branch** | `main` |
+| **Root directory** | 留空 |
 | **Framework preset** | `None` |
-| **Build command** | `cd frontend && npm install && npm run build` |
+| **Build command** | `cd frontend && npm install --legacy-peer-deps && npm run build` |
 | **Build output directory** | `frontend/dist` |
-| **Root directory** | `/`（保持空或填 `/`）|
 
 ### 6.3 添加环境变量
 

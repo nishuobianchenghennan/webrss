@@ -9,7 +9,7 @@
     "noEmit": true,
     "skipLibCheck": true,
     "paths": {
-      "@rss-plus/shared": ["../shared/src/index.ts"]
+      "@rss-plus/shared": ["./src/types/shared.ts"]
     }
   },
   "include": ["src/**/*.ts"],
