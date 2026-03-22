@@ -2,11 +2,16 @@
  * 应用路由入口
  */
 
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuthStore } from '@/stores'
 import LoginPage from '@/views/LoginPage'
 import ReaderPage from '@/views/ReaderPage'
 import SettingsPage from '@/views/SettingsPage'
+import GeneralSettingsPage from '@/views/settings/GeneralSettingsPage'
+import AiSettingsPage from '@/views/settings/AiSettingsPage'
+import ShortcutSettingsPage from '@/views/settings/ShortcutSettingsPage'
+import DataSettingsPage from '@/views/settings/DataSettingsPage'
+import ThemeSettingsPage from '@/views/settings/ThemeSettingsPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuthStore()
@@ -32,7 +37,15 @@ export default function App() {
             <SettingsPage />
           </PrivateRoute>
         }
-      />
+      >
+        <Route index element={<Navigate to="general" replace />} />
+        <Route path="general" element={<GeneralSettingsPage />} />
+        <Route path="ai" element={<AiSettingsPage />} />
+        <Route path="shortcuts" element={<ShortcutSettingsPage />} />
+        <Route path="data" element={<DataSettingsPage />} />
+        <Route path="theme" element={<ThemeSettingsPage />} />
+        <Route path="*" element={<Navigate to="general" replace />} />
+      </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

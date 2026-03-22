@@ -2,14 +2,15 @@
  * 文章列表组件 - Claude 风格设计
  */
 
-import { useRef } from 'react'
-import { RefreshCw, CheckCheck, LayoutList, LayoutGrid, Columns, SlidersHorizontal } from 'lucide-react'
+import { useMemo } from 'react'
+import { RefreshCw, CheckCheck, LayoutList, LayoutGrid } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useReadingStore, type TimePeriod } from '@/stores'
 import { useArticles, useBatchArticles } from '@/hooks/useArticles'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import ArticleRow from '@/components/article/ArticleRow'
 import ArticleCard from '@/components/article/ArticleCard'
+import { groupArticlesByTime } from '@/lib/date'
 import type { Article } from '@rss-plus/shared'
 
 const VIEW_MODES = [
@@ -38,8 +39,9 @@ function getSince(period: TimePeriod): string | undefined {
   if (period === 'today') {
     now.setHours(0, 0, 0, 0)
   } else if (period === 'week') {
-    const day = now.getDay()
-    now.setDate(now.getDate() - day)
+    const currentDay = now.getDay()
+    const dayOffset = currentDay === 0 ? 6 : currentDay - 1
+    now.setDate(now.getDate() - dayOffset)
     now.setHours(0, 0, 0, 0)
   } else if (period === 'month') {
     now.setDate(1)
@@ -53,8 +55,16 @@ function getSince(period: TimePeriod): string | undefined {
 
 export default function ArticleList() {
   const {
-    selectedFeedId, selectedCategoryId, filterStatus, timePeriod,
-    setSelectedArticle, selectedArticleId, viewMode, setViewMode, setFilterStatus, setTimePeriod
+    selectedFeedId,
+    selectedCategoryId,
+    filterStatus,
+    timePeriod,
+    setSelectedArticle,
+    selectedArticleId,
+    viewMode,
+    setViewMode,
+    setFilterStatus,
+    setTimePeriod,
   } = useReadingStore()
 
   const params = {
@@ -70,8 +80,9 @@ export default function ArticleList() {
   const batchMutation = useBatchArticles()
   const articles: Article[] = (data as any)?.records || []
   const total: number = (data as any)?.total || 0
+  const groupedArticles = useMemo(() => groupArticlesByTime(articles), [articles])
 
-  const currentIndex = articles.findIndex(a => a.id === selectedArticleId)
+  const currentIndex = articles.findIndex((article) => article.id === selectedArticleId)
 
   useKeyboardShortcuts({
     j: () => {
@@ -83,21 +94,42 @@ export default function ArticleList() {
       if (articles[prev]) setSelectedArticle(articles[prev].id)
     },
     'Shift+A': () => {
-      const ids = articles.map(a => a.id)
-      if (ids.length) batchMutation.mutate({ article_ids: ids, action: 'read' })
+      const articleIds = articles.map((article) => article.id)
+      if (articleIds.length) batchMutation.mutate({ article_ids: articleIds, action: 'read' })
     },
   })
 
   const handleMarkAllRead = () => {
-    const ids = articles.filter(a => !a.is_read).map(a => a.id)
-    if (ids.length) batchMutation.mutate({ article_ids: ids, action: 'read' })
+    const unreadIds = articles.filter((article) => !article.is_read).map((article) => article.id)
+    if (unreadIds.length) batchMutation.mutate({ article_ids: unreadIds, action: 'read' })
   }
 
-  const unreadCount = articles.filter(a => !a.is_read).length
+  const unreadCount = articles.filter((article) => !article.is_read).length
+
+  const renderArticleItem = (article: Article) => {
+    if (viewMode === 'card') {
+      return (
+        <ArticleCard
+          key={article.id}
+          article={article as any}
+          selected={article.id === selectedArticleId}
+          onClick={() => setSelectedArticle(article.id)}
+        />
+      )
+    }
+
+    return (
+      <ArticleRow
+        key={article.id}
+        article={article as any}
+        selected={article.id === selectedArticleId}
+        onClick={() => setSelectedArticle(article.id)}
+      />
+    )
+  }
 
   return (
     <div className="flex flex-col h-full" style={{ background: 'var(--surface-0)' }}>
-
       {/* 顶部工具栏 */}
       <div
         className="flex-shrink-0 px-4 py-2.5 flex flex-col gap-1.5"
@@ -107,22 +139,21 @@ export default function ArticleList() {
         <div className="flex items-center gap-2">
           {/* 过滤器标签 */}
           <div className="flex items-center gap-1 flex-1 min-w-0">
-            {FILTER_OPTIONS.map(opt => (
+            {FILTER_OPTIONS.map((option) => (
               <button
-                key={opt.value}
-                onClick={() => setFilterStatus(opt.value as any)}
+                key={option.value}
+                onClick={() => setFilterStatus(option.value as any)}
                 className={cn(
                   'px-2.5 py-1 rounded-md text-[12px] font-medium transition-all duration-100',
-                  filterStatus === opt.value
+                  filterStatus === option.value
                     ? 'bg-accent-subtle text-accent-text'
                     : 'text-muted hover:text-primary'
                 )}
-                style={filterStatus === opt.value
+                style={filterStatus === option.value
                   ? { background: 'var(--accent-subtle)', color: 'var(--accent-text)' }
-                  : { color: 'var(--text-muted)' }
-                }
+                  : { color: 'var(--text-muted)' }}
               >
-                {opt.label}
+                {option.label}
               </button>
             ))}
           </div>
@@ -138,11 +169,7 @@ export default function ArticleList() {
               <CheckCheck size={14} />
             </button>
 
-            <button
-              onClick={() => refetch()}
-              className="btn-icon"
-              title="刷新"
-            >
+            <button onClick={() => refetch()} className="btn-icon" title="刷新">
               <RefreshCw size={13} className={cn(isFetching && 'animate-spin')} />
             </button>
 
@@ -157,9 +184,12 @@ export default function ArticleList() {
                   onClick={() => setViewMode(id as any)}
                   className={cn('btn-icon w-6 h-6 rounded-md', viewMode === id && 'active')}
                   style={viewMode === id
-                    ? { background: 'var(--surface-0)', color: 'var(--text-primary)', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
-                    : {}
-                  }
+                    ? {
+                        background: 'var(--surface-0)',
+                        color: 'var(--text-primary)',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                      }
+                    : {}}
                   title={id === 'list' ? '列表视图' : '卡片视图'}
                 >
                   <Icon size={13} />
@@ -171,19 +201,16 @@ export default function ArticleList() {
 
         {/* 第二行：时间周期筛选 */}
         <div className="flex items-center gap-1">
-          {TIME_PERIOD_OPTIONS.map(opt => (
+          {TIME_PERIOD_OPTIONS.map((option) => (
             <button
-              key={opt.value}
-              onClick={() => setTimePeriod(opt.value)}
-              className={cn(
-                'px-2 py-0.5 rounded text-[11px] font-medium transition-all duration-100',
-              )}
-              style={timePeriod === opt.value
+              key={option.value}
+              onClick={() => setTimePeriod(option.value)}
+              className="px-2 py-0.5 rounded text-[11px] font-medium transition-all duration-100"
+              style={timePeriod === option.value
                 ? { background: 'var(--surface-2)', color: 'var(--text-primary)', border: '1px solid var(--border)' }
-                : { color: 'var(--text-disabled)', border: '1px solid transparent' }
-              }
+                : { color: 'var(--text-disabled)', border: '1px solid transparent' }}
             >
-              {opt.label}
+              {option.label}
             </button>
           ))}
         </div>
@@ -197,7 +224,9 @@ export default function ArticleList() {
         >
           <span className="text-[11px]" style={{ color: 'var(--text-disabled)' }}>
             {total} 篇
-            {unreadCount > 0 && <span style={{ color: 'var(--accent-text)', marginLeft: '4px' }}>{unreadCount} 未读</span>}
+            {unreadCount > 0 && (
+              <span style={{ color: 'var(--accent-text)', marginLeft: '4px' }}>{unreadCount} 未读</span>
+            )}
           </span>
         </div>
       )}
@@ -211,35 +240,48 @@ export default function ArticleList() {
           </div>
         ) : articles.length === 0 ? (
           <div className="empty-state">
-            <div className="w-12 h-12 rounded-2xl mb-4 flex items-center justify-center"
-              style={{ background: 'var(--surface-1)' }}>
+            <div
+              className="w-12 h-12 rounded-2xl mb-4 flex items-center justify-center"
+              style={{ background: 'var(--surface-1)' }}
+            >
               <RefreshCw size={20} style={{ color: 'var(--text-disabled)' }} />
             </div>
-            <p className="text-[13px] font-medium" style={{ color: 'var(--text-muted)' }}>暂无文章</p>
+            <p className="text-[13px] font-medium" style={{ color: 'var(--text-muted)' }}>
+              暂无文章
+            </p>
             <p className="text-[11.5px] mt-1" style={{ color: 'var(--text-disabled)' }}>
               添加订阅源或刷新试试
             </p>
           </div>
-        ) : viewMode === 'card' ? (
-          <div className="grid grid-cols-1 gap-2 p-3">
-            {articles.map(article => (
-              <ArticleCard
-                key={article.id}
-                article={article as any}
-                selected={article.id === selectedArticleId}
-                onClick={() => setSelectedArticle(article.id)}
-              />
-            ))}
-          </div>
         ) : (
-          <div>
-            {articles.map(article => (
-              <ArticleRow
-                key={article.id}
-                article={article as any}
-                selected={article.id === selectedArticleId}
-                onClick={() => setSelectedArticle(article.id)}
-              />
+          <div className={viewMode === 'card' ? 'p-3 space-y-4' : 'py-2'}>
+            {groupedArticles.map((group) => (
+              <section key={group.key} className="min-w-0">
+                <div
+                  className={cn(
+                    'sticky top-0 z-10 px-4 py-2 text-[11px] font-semibold tracking-[0.04em]',
+                    viewMode === 'card' ? 'mb-2 rounded-xl' : ''
+                  )}
+                  style={{
+                    background: 'color-mix(in srgb, var(--surface-0) 88%, transparent)',
+                    backdropFilter: 'blur(8px)',
+                    color: 'var(--text-muted)',
+                  }}
+                >
+                  {group.label}
+                  <span className="ml-2 text-[10px]" style={{ color: 'var(--text-disabled)' }}>
+                    {group.articles.length} 篇
+                  </span>
+                </div>
+
+                {viewMode === 'card' ? (
+                  <div className="grid grid-cols-1 gap-2">
+                    {group.articles.map(renderArticleItem)}
+                  </div>
+                ) : (
+                  <div>{group.articles.map(renderArticleItem)}</div>
+                )}
+              </section>
             ))}
           </div>
         )}

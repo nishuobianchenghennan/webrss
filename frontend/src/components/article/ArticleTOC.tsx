@@ -1,8 +1,8 @@
 /**
- * 文章大纲组件 - 解析文章标题生成目录，悬浮在右上角
+ * 文章大纲组件 - 解析文章标题生成目录，固定在详情区右上角
  */
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { List, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -22,90 +22,97 @@ export default function ArticleTOC({ contentRef, scrollContainerRef }: ArticleTO
   const [activeId, setActiveId] = useState<string>('')
   const [open, setOpen] = useState(false)
 
-  // 解析内容区标题
   useEffect(() => {
     const container = contentRef.current
     if (!container) return
 
-    const headings = container.querySelectorAll('h1,h2,h3,h4')
-    const tocItems: TocItem[] = []
-    headings.forEach((el, idx) => {
-      const id = `toc-heading-${idx}`
-      el.id = id
-      const level = parseInt(el.tagName[1])
-      tocItems.push({ id, text: el.textContent || '', level })
+    const headings = Array.from(container.querySelectorAll('h1,h2,h3,h4'))
+    const tocItems = headings.map((element, index) => {
+      const id = `toc-heading-${index}`
+      element.id = id
+
+      return {
+        id,
+        text: element.textContent || '',
+        level: Number(element.tagName.slice(1)),
+      }
     })
+
     setItems(tocItems)
     setActiveId(tocItems[0]?.id || '')
   }, [contentRef.current?.innerHTML])
 
-  // 监听滚动，高亮当前标题
   useEffect(() => {
-    const scrollEl = scrollContainerRef.current
-    if (!scrollEl || items.length === 0) return
+    const scrollElement = scrollContainerRef.current
+    if (!scrollElement || items.length === 0) return
 
     const handleScroll = () => {
-      const offsets = items.map(item => {
-        const el = document.getElementById(item.id)
-        return el ? el.getBoundingClientRect().top : Infinity
-      })
-      const passedIdx = offsets.reduce((best, top, idx) => {
-        return top <= 80 ? idx : best
-      }, 0)
-      setActiveId(items[passedIdx]?.id || '')
+      const containerTop = scrollElement.getBoundingClientRect().top
+      const nextActiveItem = items.reduce<TocItem | null>((currentItem, item) => {
+        const element = document.getElementById(item.id)
+        if (!element) return currentItem
+
+        const relativeTop = element.getBoundingClientRect().top - containerTop
+        return relativeTop <= 96 ? item : currentItem
+      }, items[0] || null)
+
+      setActiveId(nextActiveItem?.id || '')
     }
 
-    scrollEl.addEventListener('scroll', handleScroll, { passive: true })
-    return () => scrollEl.removeEventListener('scroll', handleScroll)
+    handleScroll()
+    scrollElement.addEventListener('scroll', handleScroll, { passive: true })
+    return () => scrollElement.removeEventListener('scroll', handleScroll)
   }, [items, scrollContainerRef])
 
-  // 大纲为空则不渲染
   if (items.length === 0) return null
 
-  const scrollTo = (id: string) => {
-    const el = document.getElementById(id)
-    const scrollEl = scrollContainerRef.current
-    if (!el || !scrollEl) return
-    const elTop = el.getBoundingClientRect().top
-    const containerTop = scrollEl.getBoundingClientRect().top
-    scrollEl.scrollBy({ top: elTop - containerTop - 72, behavior: 'smooth' })
+  const scrollToHeading = (id: string) => {
+    const element = document.getElementById(id)
+    const scrollElement = scrollContainerRef.current
+    if (!element || !scrollElement) return
+
+    const elementTop = element.getBoundingClientRect().top
+    const containerTop = scrollElement.getBoundingClientRect().top
+    scrollElement.scrollBy({ top: elementTop - containerTop - 72, behavior: 'smooth' })
     setOpen(false)
   }
 
   return (
-    <div className="absolute top-3 right-3 z-20">
-      {/* 触发按钮 */}
+    <div className="hidden xl:block absolute top-5 right-5 z-20">
       <button
-        onClick={() => setOpen(v => !v)}
+        onClick={() => setOpen((value) => !value)}
         className={cn(
-          'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors',
+          'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors shadow-sm',
           open
             ? 'text-[var(--accent)] bg-[var(--accent-subtle)]'
             : 'text-[var(--text-muted)] hover:bg-[var(--surface-2)]'
         )}
         title="文章大纲"
-        style={{ border: '1px solid var(--border-subtle)' }}
+        style={{
+          border: '1px solid var(--border-subtle)',
+          background: open ? 'var(--accent-subtle)' : 'var(--surface-0)',
+        }}
       >
         <List size={13} />
         <span>大纲</span>
       </button>
 
-      {/* 大纲面板 */}
       {open && (
         <div
-          className="absolute right-0 mt-1 w-56 rounded-xl shadow-lg overflow-hidden"
+          className="absolute right-0 mt-2 w-60 rounded-xl shadow-lg overflow-hidden"
           style={{
             background: 'var(--surface-0)',
             border: '1px solid var(--border)',
-            maxHeight: '60vh',
+            maxHeight: 'calc(100vh - 180px)',
           }}
         >
-          {/* 标题栏 */}
           <div
             className="flex items-center justify-between px-3 py-2"
             style={{ borderBottom: '1px solid var(--border-subtle)' }}
           >
-            <span className="text-[12px] font-medium" style={{ color: 'var(--text-secondary)' }}>文章大纲</span>
+            <span className="text-[12px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+              文章大纲
+            </span>
             <button
               onClick={() => setOpen(false)}
               className="p-0.5 rounded"
@@ -115,17 +122,14 @@ export default function ArticleTOC({ contentRef, scrollContainerRef }: ArticleTO
             </button>
           </div>
 
-          {/* 目录列表 */}
-          <div className="overflow-y-auto" style={{ maxHeight: 'calc(60vh - 36px)' }}>
-            {items.map(item => (
+          <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
+            {items.map((item) => (
               <button
                 key={item.id}
-                onClick={() => scrollTo(item.id)}
+                onClick={() => scrollToHeading(item.id)}
                 className={cn(
                   'w-full text-left px-3 py-1.5 text-[12px] leading-snug transition-colors truncate block',
-                  item.id === activeId
-                    ? 'font-medium'
-                    : 'hover:bg-[var(--surface-1)]'
+                  item.id === activeId ? 'font-medium' : 'hover:bg-[var(--surface-1)]'
                 )}
                 style={{
                   paddingLeft: `${(item.level - 1) * 12 + 12}px`,

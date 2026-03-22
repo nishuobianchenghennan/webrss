@@ -3,10 +3,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import {
-  Star, ExternalLink, ChevronLeft, BookOpen, Clock,
-  Share2, MoreHorizontal, Bookmark, ArrowLeft
-} from 'lucide-react'
+import { Star, ExternalLink, BookOpen, Clock, ArrowLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useReadingStore } from '@/stores'
 import { useArticle, useMarkRead, useToggleStar } from '@/hooks/useArticles'
@@ -38,13 +35,13 @@ export default function ArticleDetail() {
   })
 
   // 监听滚动，顶部工具栏加边框
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    setScrolled(e.currentTarget.scrollTop > 10)
+  const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    setScrolled(event.currentTarget.scrollTop > 10)
   }
 
   // 供 ArticleTOC 使用的滚动容器 ref 同步
-  const handleScrollRef = (el: HTMLDivElement | null) => {
-    ;(scrollContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
+  const handleScrollRef = (element: HTMLDivElement | null) => {
+    ;(scrollContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = element
   }
 
   if (!selectedArticleId) {
@@ -69,8 +66,10 @@ export default function ArticleDetail() {
   if (isLoading) {
     return (
       <div className="flex-1 empty-state" style={{ background: 'var(--surface-0)' }}>
-        <div className="w-6 h-6 border-2 rounded-full animate-spin"
-          style={{ borderColor: 'var(--border)', borderTopColor: 'var(--accent)' }} />
+        <div
+          className="w-6 h-6 border-2 rounded-full animate-spin"
+          style={{ borderColor: 'var(--border)', borderTopColor: 'var(--accent)' }}
+        />
       </div>
     )
   }
@@ -78,14 +77,15 @@ export default function ArticleDetail() {
   if (!article) {
     return (
       <div className="flex-1 empty-state" style={{ background: 'var(--surface-0)' }}>
-        <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>文章不存在</p>
+        <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
+          文章不存在
+        </p>
       </div>
     )
   }
 
   return (
     <div className="flex-1 flex flex-col min-h-0" style={{ background: 'var(--surface-0)' }}>
-
       {/* 顶部操作栏 */}
       <div
         className={cn(
@@ -95,10 +95,7 @@ export default function ArticleDetail() {
         style={{ borderBottom: '1px solid var(--border-subtle)', background: 'var(--surface-0)' }}
       >
         {/* 返回按钮（移动端） */}
-        <button
-          onClick={() => setSelectedArticle(null)}
-          className="btn-icon md:hidden"
-        >
+        <button onClick={() => setSelectedArticle(null)} className="btn-icon md:hidden">
           <ArrowLeft size={16} />
         </button>
 
@@ -110,7 +107,7 @@ export default function ArticleDetail() {
           <button
             onClick={() => toggleStar.mutate(article.id)}
             className={cn('btn-icon', article.is_starred && 'active')}
-            title={`收藏 (S)`}
+            title="收藏 (S)"
             style={article.is_starred ? { color: '#f59e0b', background: '#fef3c7' } : {}}
           >
             <Star size={15} fill={article.is_starred ? 'currentColor' : 'none'} />
@@ -132,134 +129,139 @@ export default function ArticleDetail() {
       </div>
 
       {/* 文章正文区 */}
-      <div
-        ref={handleScrollRef}
-        className="flex-1 overflow-y-auto relative"
-        onScroll={handleScroll}
-      >
-        {/* 文章大纲（右上角悬浮） */}
+      <div className="flex-1 min-h-0 relative">
         <ArticleTOC contentRef={contentRef} scrollContainerRef={scrollContainerRef} />
-        <div className="max-w-[680px] mx-auto px-6 py-10 lg:px-10">
 
-          {/* 文章元信息 */}
-          <div className="mb-8">
-            {/* 来源信息 */}
-            <div className="flex items-center gap-2 mb-4">
-              {article.feed_favicon && (
-                <img
-                  src={article.feed_favicon}
-                  alt=""
-                  className="w-5 h-5 rounded"
-                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-                />
-              )}
-              <span className="text-[13px] font-medium" style={{ color: 'var(--text-secondary)' }}>
-                {article.feed_title}
-              </span>
-              {article.author && (
-                <>
-                  <span style={{ color: 'var(--text-disabled)' }}>·</span>
-                  <span className="text-[13px]" style={{ color: 'var(--text-muted)' }}>{article.author}</span>
-                </>
-              )}
-            </div>
-
-            {/* 标题 */}
-            <h1
-              className="text-[24px] font-bold leading-tight mb-4"
-              style={{
-                color: 'var(--text-primary)',
-                fontFamily: 'Inter, "Noto Sans SC", sans-serif',
-                letterSpacing: '-0.03em',
-              }}
-            >
-              {article.title}
-            </h1>
-
-            {/* 元数据行 */}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-              {article.published_at && (
-                <span className="text-[12.5px]" style={{ color: 'var(--text-muted)' }}>
-                  {formatPublishedAt(article.published_at)}
+        <div
+          ref={handleScrollRef}
+          className="h-full overflow-y-auto"
+          onScroll={handleScroll}
+        >
+          <div className="max-w-[980px] mx-auto px-6 py-10 lg:px-10 xl:pr-[280px]">
+            {/* 文章元信息 */}
+            <div className="mb-8">
+              {/* 来源信息 */}
+              <div className="flex items-center gap-2 mb-4">
+                {article.feed_favicon && (
+                  <img
+                    src={article.feed_favicon}
+                    alt=""
+                    className="w-5 h-5 rounded"
+                    onError={(event) => {
+                      ;(event.currentTarget as HTMLImageElement).style.display = 'none'
+                    }}
+                  />
+                )}
+                <span className="text-[13px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+                  {article.feed_title}
                 </span>
-              )}
-              {article.reading_time > 0 && (
-                <span className="flex items-center gap-1 text-[12.5px]" style={{ color: 'var(--text-muted)' }}>
-                  <Clock size={12} />
-                  {formatReadingTime(article.reading_time)}
-                </span>
-              )}
-              {article.word_count > 0 && (
-                <span className="text-[12.5px]" style={{ color: 'var(--text-muted)' }}>
-                  {formatWordCount(article.word_count)}
-                </span>
-              )}
-            </div>
-          </div>
+                {article.author && (
+                  <>
+                    <span style={{ color: 'var(--text-disabled)' }}>·</span>
+                    <span className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
+                      {article.author}
+                    </span>
+                  </>
+                )}
+              </div>
 
-          {/* 封面图 */}
-          {article.cover_image_url && (
-            <div className="mb-8 -mx-2">
-              <img
-                src={article.cover_image_url}
-                alt=""
-                className="w-full object-cover"
-                style={{ borderRadius: '12px', maxHeight: '360px' }}
-              />
-            </div>
-          )}
-
-          {/* 分割线 */}
-          <div className="mb-8" style={{ height: '1px', background: 'var(--border-subtle)' }} />
-
-          {/* 文章正文 */}
-          {article.content ? (
-            <div
-              ref={contentRef}
-              className="article-content"
-              dangerouslySetInnerHTML={{ __html: article.content }}
-            />
-          ) : article.summary ? (
-            <div ref={contentRef} className="space-y-4">
-              <p
-                className="text-[16px] leading-[1.85]"
-                style={{ color: 'var(--text-secondary)', fontFamily: 'Lora, "Noto Serif SC", serif' }}
+              {/* 标题 */}
+              <h1
+                className="text-[24px] font-bold leading-tight mb-4"
+                style={{
+                  color: 'var(--text-primary)',
+                  fontFamily: 'Inter, "Noto Sans SC", sans-serif',
+                  letterSpacing: '-0.03em',
+                }}
               >
-                {article.summary}
-              </p>
-              {article.url && (
-                <a
-                  href={article.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 btn-primary mt-4"
-                  style={{ borderRadius: '10px' }}
-                >
-                  阅读完整原文 <ExternalLink size={13} />
-                </a>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-[13px] mb-3" style={{ color: 'var(--text-muted)' }}>
-                暂无正文内容
-              </p>
-              {article.url && (
-                <a
-                  href={article.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-primary inline-flex"
-                  style={{ borderRadius: '10px' }}
-                >
-                  前往原文 <ExternalLink size={13} />
-                </a>
-              )}
-            </div>
-          )}
+                {article.title}
+              </h1>
 
-          {/* 底部间距 */}
-          <div className="h-16" />
+              {/* 元数据行 */}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                {article.published_at && (
+                  <span className="text-[12.5px]" style={{ color: 'var(--text-muted)' }}>
+                    {formatPublishedAt(article.published_at)}
+                  </span>
+                )}
+                {article.reading_time > 0 && (
+                  <span className="flex items-center gap-1 text-[12.5px]" style={{ color: 'var(--text-muted)' }}>
+                    <Clock size={12} />
+                    {formatReadingTime(article.reading_time)}
+                  </span>
+                )}
+                {article.word_count > 0 && (
+                  <span className="text-[12.5px]" style={{ color: 'var(--text-muted)' }}>
+                    {formatWordCount(article.word_count)}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* 封面图 */}
+            {article.cover_image_url && (
+              <div className="mb-8 -mx-2">
+                <img
+                  src={article.cover_image_url}
+                  alt=""
+                  className="w-full object-cover"
+                  style={{ borderRadius: '12px', maxHeight: '360px' }}
+                />
+              </div>
+            )}
+
+            {/* 分割线 */}
+            <div className="mb-8" style={{ height: '1px', background: 'var(--border-subtle)' }} />
+
+            {/* 文章正文 */}
+            {article.content ? (
+              <div
+                ref={contentRef}
+                className="article-content max-w-[680px]"
+                dangerouslySetInnerHTML={{ __html: article.content }}
+              />
+            ) : article.summary ? (
+              <div ref={contentRef} className="space-y-4 max-w-[680px]">
+                <p
+                  className="text-[16px] leading-[1.85]"
+                  style={{ color: 'var(--text-secondary)', fontFamily: 'Lora, "Noto Serif SC", serif' }}
+                >
+                  {article.summary}
+                </p>
+                {article.url && (
+                  <a
+                    href={article.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 btn-primary mt-4"
+                    style={{ borderRadius: '10px' }}
+                  >
+                    阅读完整原文 <ExternalLink size={13} />
+                  </a>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-12 max-w-[680px]">
+                <p className="text-[13px] mb-3" style={{ color: 'var(--text-muted)' }}>
+                  暂无正文内容
+                </p>
+                {article.url && (
+                  <a
+                    href={article.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-primary inline-flex"
+                    style={{ borderRadius: '10px' }}
+                  >
+                    前往原文 <ExternalLink size={13} />
+                  </a>
+                )}
+              </div>
+            )}
+
+            {/* 底部间距 */}
+            <div className="h-16" />
+          </div>
         </div>
       </div>
     </div>
