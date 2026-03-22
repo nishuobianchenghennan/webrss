@@ -255,24 +255,27 @@ export default function ArticleList() {
           </div>
         ) : (
           <div className={viewMode === 'card' ? 'p-3 space-y-4' : 'py-2'}>
-            {groupedArticles.map((group) => (
+            {groupedArticles.map((group) => {
+              const showHeader = groupedArticles.length > 1
+              return (
               <section key={group.key} className="min-w-0">
-                <div
-                  className={cn(
-                    'sticky top-0 z-10 px-4 py-2 text-[11px] font-semibold tracking-[0.04em]',
-                    viewMode === 'card' ? 'mb-2 rounded-xl' : ''
-                  )}
-                  style={{
-                    background: 'color-mix(in srgb, var(--surface-0) 88%, transparent)',
-                    backdropFilter: 'blur(8px)',
-                    color: 'var(--text-muted)',
-                  }}
-                >
-                  {group.label}
-                  <span className="ml-2 text-[10px]" style={{ color: 'var(--text-disabled)' }}>
-                    {group.articles.length} 篇
-                  </span>
-                </div>
+                {showHeader && (
+                  <div
+                    className={cn(
+                      'sticky top-0 z-10 px-4 py-2 text-[11px] font-semibold tracking-[0.04em]',
+                      viewMode === 'card' ? 'mb-2 rounded-xl' : ''
+                    )}
+                    style={{
+                      background: 'var(--surface-0)',
+                      color: 'var(--text-muted)',
+                    }}
+                  >
+                    {group.label}
+                    <span className="ml-2 text-[10px]" style={{ color: 'var(--text-disabled)' }}>
+                      {group.articles.length} 篇
+                    </span>
+                  </div>
+                )}
 
                 {viewMode === 'card' ? (
                   <div className="grid grid-cols-1 gap-2">
@@ -282,7 +285,8 @@ export default function ArticleList() {
                   <div>{group.articles.map(renderArticleItem)}</div>
                 )}
               </section>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
