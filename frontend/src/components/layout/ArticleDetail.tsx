@@ -12,6 +12,7 @@ import { useReadingStore } from '@/stores'
 import { useArticle, useMarkRead, useToggleStar } from '@/hooks/useArticles'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { formatPublishedAt, formatReadingTime, formatWordCount } from '@/lib/date'
+import ArticleTOC from '@/components/article/ArticleTOC'
 
 export default function ArticleDetail() {
   const { selectedArticleId, setSelectedArticle } = useReadingStore()
@@ -20,6 +21,7 @@ export default function ArticleDetail() {
   const markRead = useMarkRead()
   const toggleStar = useToggleStar()
   const contentRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [scrolled, setScrolled] = useState(false)
 
   // 自动标记已读
@@ -38,6 +40,11 @@ export default function ArticleDetail() {
   // 监听滚动，顶部工具栏加边框
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     setScrolled(e.currentTarget.scrollTop > 10)
+  }
+
+  // 供 ArticleTOC 使用的滚动容器 ref 同步
+  const handleScrollRef = (el: HTMLDivElement | null) => {
+    ;(scrollContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
   }
 
   if (!selectedArticleId) {
@@ -126,9 +133,12 @@ export default function ArticleDetail() {
 
       {/* 文章正文区 */}
       <div
-        className="flex-1 overflow-y-auto"
+        ref={handleScrollRef}
+        className="flex-1 overflow-y-auto relative"
         onScroll={handleScroll}
       >
+        {/* 文章大纲（右上角悬浮） */}
+        <ArticleTOC contentRef={contentRef} scrollContainerRef={scrollContainerRef} />
         <div className="max-w-[680px] mx-auto px-6 py-10 lg:px-10">
 
           {/* 文章元信息 */}
@@ -210,7 +220,7 @@ export default function ArticleDetail() {
               dangerouslySetInnerHTML={{ __html: article.content }}
             />
           ) : article.summary ? (
-            <div className="space-y-4">
+            <div ref={contentRef} className="space-y-4">
               <p
                 className="text-[16px] leading-[1.85]"
                 style={{ color: 'var(--text-secondary)', fontFamily: 'Lora, "Noto Serif SC", serif' }}

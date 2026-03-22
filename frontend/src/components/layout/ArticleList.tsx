@@ -5,7 +5,7 @@
 import { useRef } from 'react'
 import { RefreshCw, CheckCheck, LayoutList, LayoutGrid, Columns, SlidersHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useReadingStore } from '@/stores'
+import { useReadingStore, type TimePeriod } from '@/stores'
 import { useArticles, useBatchArticles } from '@/hooks/useArticles'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import ArticleRow from '@/components/article/ArticleRow'
@@ -23,10 +23,38 @@ const FILTER_OPTIONS = [
   { value: 'starred', label: '收藏' },
 ] as const
 
+const TIME_PERIOD_OPTIONS: { value: TimePeriod; label: string }[] = [
+  { value: 'all', label: '全部' },
+  { value: 'today', label: '今天' },
+  { value: 'week', label: '本周' },
+  { value: 'month', label: '本月' },
+  { value: 'year', label: '今年' },
+]
+
+/** 根据时间周期计算 since ISO 字符串 */
+function getSince(period: TimePeriod): string | undefined {
+  if (period === 'all') return undefined
+  const now = new Date()
+  if (period === 'today') {
+    now.setHours(0, 0, 0, 0)
+  } else if (period === 'week') {
+    const day = now.getDay()
+    now.setDate(now.getDate() - day)
+    now.setHours(0, 0, 0, 0)
+  } else if (period === 'month') {
+    now.setDate(1)
+    now.setHours(0, 0, 0, 0)
+  } else if (period === 'year') {
+    now.setMonth(0, 1)
+    now.setHours(0, 0, 0, 0)
+  }
+  return now.toISOString()
+}
+
 export default function ArticleList() {
   const {
-    selectedFeedId, selectedCategoryId, filterStatus,
-    setSelectedArticle, selectedArticleId, viewMode, setViewMode, setFilterStatus
+    selectedFeedId, selectedCategoryId, filterStatus, timePeriod,
+    setSelectedArticle, selectedArticleId, viewMode, setViewMode, setFilterStatus, setTimePeriod
   } = useReadingStore()
 
   const params = {
@@ -35,6 +63,7 @@ export default function ArticleList() {
     status: filterStatus,
     sort: 'newest' as const,
     limit: 50,
+    since: getSince(timePeriod),
   }
 
   const { data, isLoading, refetch, isFetching } = useArticles(params)
@@ -71,70 +100,92 @@ export default function ArticleList() {
 
       {/* 顶部工具栏 */}
       <div
-        className="flex-shrink-0 px-4 py-2.5 flex items-center gap-2"
+        className="flex-shrink-0 px-4 py-2.5 flex flex-col gap-1.5"
         style={{ borderBottom: '1px solid var(--border-subtle)' }}
       >
-        {/* 过滤器标签 */}
-        <div className="flex items-center gap-1 flex-1 min-w-0">
-          {FILTER_OPTIONS.map(opt => (
+        {/* 第一行：状态过滤 + 操作按钮 */}
+        <div className="flex items-center gap-2">
+          {/* 过滤器标签 */}
+          <div className="flex items-center gap-1 flex-1 min-w-0">
+            {FILTER_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => setFilterStatus(opt.value as any)}
+                className={cn(
+                  'px-2.5 py-1 rounded-md text-[12px] font-medium transition-all duration-100',
+                  filterStatus === opt.value
+                    ? 'bg-accent-subtle text-accent-text'
+                    : 'text-muted hover:text-primary'
+                )}
+                style={filterStatus === opt.value
+                  ? { background: 'var(--accent-subtle)', color: 'var(--accent-text)' }
+                  : { color: 'var(--text-muted)' }
+                }
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          {/* 右侧操作 */}
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={handleMarkAllRead}
+              className="btn-icon"
+              title="全部标记已读 (Shift+A)"
+              disabled={unreadCount === 0}
+            >
+              <CheckCheck size={14} />
+            </button>
+
+            <button
+              onClick={() => refetch()}
+              className="btn-icon"
+              title="刷新"
+            >
+              <RefreshCw size={13} className={cn(isFetching && 'animate-spin')} />
+            </button>
+
+            {/* 视图切换 */}
+            <div
+              className="flex items-center rounded-lg p-0.5 ml-1"
+              style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}
+            >
+              {VIEW_MODES.map(({ id, icon: Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => setViewMode(id as any)}
+                  className={cn('btn-icon w-6 h-6 rounded-md', viewMode === id && 'active')}
+                  style={viewMode === id
+                    ? { background: 'var(--surface-0)', color: 'var(--text-primary)', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
+                    : {}
+                  }
+                  title={id === 'list' ? '列表视图' : '卡片视图'}
+                >
+                  <Icon size={13} />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 第二行：时间周期筛选 */}
+        <div className="flex items-center gap-1">
+          {TIME_PERIOD_OPTIONS.map(opt => (
             <button
               key={opt.value}
-              onClick={() => setFilterStatus(opt.value as any)}
+              onClick={() => setTimePeriod(opt.value)}
               className={cn(
-                'px-2.5 py-1 rounded-md text-[12px] font-medium transition-all duration-100',
-                filterStatus === opt.value
-                  ? 'bg-accent-subtle text-accent-text'
-                  : 'text-muted hover:text-primary'
+                'px-2 py-0.5 rounded text-[11px] font-medium transition-all duration-100',
               )}
-              style={filterStatus === opt.value
-                ? { background: 'var(--accent-subtle)', color: 'var(--accent-text)' }
-                : { color: 'var(--text-muted)' }
+              style={timePeriod === opt.value
+                ? { background: 'var(--surface-2)', color: 'var(--text-primary)', border: '1px solid var(--border)' }
+                : { color: 'var(--text-disabled)', border: '1px solid transparent' }
               }
             >
               {opt.label}
             </button>
           ))}
-        </div>
-
-        {/* 右侧操作 */}
-        <div className="flex items-center gap-0.5">
-          <button
-            onClick={handleMarkAllRead}
-            className="btn-icon"
-            title="全部标记已读 (Shift+A)"
-            disabled={unreadCount === 0}
-          >
-            <CheckCheck size={14} />
-          </button>
-
-          <button
-            onClick={() => refetch()}
-            className="btn-icon"
-            title="刷新"
-          >
-            <RefreshCw size={13} className={cn(isFetching && 'animate-spin')} />
-          </button>
-
-          {/* 视图切换 */}
-          <div
-            className="flex items-center rounded-lg p-0.5 ml-1"
-            style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}
-          >
-            {VIEW_MODES.map(({ id, icon: Icon }) => (
-              <button
-                key={id}
-                onClick={() => setViewMode(id as any)}
-                className={cn('btn-icon w-6 h-6 rounded-md', viewMode === id && 'active')}
-                style={viewMode === id
-                  ? { background: 'var(--surface-0)', color: 'var(--text-primary)', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
-                  : {}
-                }
-                title={id === 'list' ? '列表视图' : '卡片视图'}
-              >
-                <Icon size={13} />
-              </button>
-            ))}
-          </div>
         </div>
       </div>
 

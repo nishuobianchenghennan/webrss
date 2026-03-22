@@ -17,7 +17,7 @@ articleRoutes.get('/', async (c) => {
   const {
     feed_id, category_id, tag_id,
     status = 'all', search, sort = 'newest',
-    page = '1', limit = '20',
+    page = '1', limit = '20', since,
   } = c.req.query();
 
   const pageNum = Math.max(1, parseInt(page));
@@ -57,6 +57,12 @@ articleRoutes.get('/', async (c) => {
   if (search) {
     query += ' AND (a.title LIKE ? OR a.summary LIKE ?)';
     params.push(`%${search}%`, `%${search}%`);
+  }
+
+  // 时间周期筛选
+  if (since) {
+    query += ' AND a.published_at >= ?';
+    params.push(since);
   }
 
   // 计算总数（在追加 ORDER BY 和 LIMIT 之前执行）

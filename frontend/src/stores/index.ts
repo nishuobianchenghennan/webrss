@@ -33,18 +33,21 @@ export const useAuthStore = create<AuthState>()(
 // ===== 阅读状态 =====
 type ViewMode = 'list' | 'card' | 'magazine' | 'compact'
 type FilterStatus = 'all' | 'unread' | 'starred' | 'pinned'
+export type TimePeriod = 'all' | 'today' | 'week' | 'month' | 'year'
 
 interface ReadingState {
   selectedFeedId: string | null
   selectedCategoryId: string | null
   selectedArticleId: string | null
   filterStatus: FilterStatus
+  timePeriod: TimePeriod
   viewMode: ViewMode
   sidebarCollapsed: boolean
   setSelectedFeed: (id: string | null) => void
   setSelectedCategory: (id: string | null) => void
   setSelectedArticle: (id: string | null) => void
   setFilterStatus: (status: FilterStatus) => void
+  setTimePeriod: (period: TimePeriod) => void
   setViewMode: (mode: ViewMode) => void
   toggleSidebar: () => void
 }
@@ -56,12 +59,14 @@ export const useReadingStore = create<ReadingState>()(
       selectedCategoryId: null,
       selectedArticleId: null,
       filterStatus: 'all',
+      timePeriod: 'all',
       viewMode: 'list',
       sidebarCollapsed: false,
       setSelectedFeed: (id) => set({ selectedFeedId: id, selectedCategoryId: null, selectedArticleId: null }),
       setSelectedCategory: (id) => set({ selectedCategoryId: id, selectedFeedId: null, selectedArticleId: null }),
       setSelectedArticle: (id) => set({ selectedArticleId: id }),
       setFilterStatus: (filterStatus) => set({ filterStatus }),
+      setTimePeriod: (timePeriod) => set({ timePeriod }),
       setViewMode: (viewMode) => set({ viewMode }),
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
     }),

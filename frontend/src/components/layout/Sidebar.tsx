@@ -5,14 +5,15 @@
 import { useState } from 'react'
 import {
   Inbox, Star, Pin, Rss, Plus, Settings, ChevronDown,
-  RefreshCw, MoreHorizontal, Folder, Hash
+  RefreshCw, MoreHorizontal, Folder, Hash, FolderPlus, Trash2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useReadingStore } from '@/stores'
 import { useFeeds } from '@/hooks/useFeeds'
-import { useCategories } from '@/hooks/useCategories'
+import { useCategories, useDeleteCategory } from '@/hooks/useCategories'
 import { useRefreshFeed } from '@/hooks/useFeeds'
 import AddFeedDialog from '@/components/feed/AddFeedDialog'
+import AddCategoryDialog from '@/components/feed/AddCategoryDialog'
 
 interface SidebarProps {
   onNavigateSettings?: () => void
@@ -27,6 +28,8 @@ export default function Sidebar({ onNavigateSettings }: SidebarProps) {
   const { data: categories = [] } = useCategories()
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set(['__all__']))
   const [showAddFeed, setShowAddFeed] = useState(false)
+  const [showAddCategory, setShowAddCategory] = useState(false)
+  const deleteCategory = useDeleteCategory()
   const refreshFeed = useRefreshFeed()
 
   const totalUnread = feeds.reduce((sum: number, f: any) => sum + (f.unread_count || 0), 0)
@@ -67,13 +70,22 @@ export default function Sidebar({ onNavigateSettings }: SidebarProps) {
             RSS Plus
           </span>
         </div>
-        <button
-          onClick={() => setShowAddFeed(true)}
-          className="btn-icon"
-          title="添加订阅源"
-        >
-          <Plus size={15} />
-        </button>
+        <div className="flex items-center gap-0.5">
+          <button
+            onClick={() => setShowAddCategory(true)}
+            className="btn-icon"
+            title="新建分类"
+          >
+            <FolderPlus size={14} />
+          </button>
+          <button
+            onClick={() => setShowAddFeed(true)}
+            className="btn-icon"
+            title="添加订阅源"
+          >
+            <Plus size={15} />
+          </button>
+        </div>
       </div>
 
       {/* 滚动内容区 */}
@@ -122,24 +134,44 @@ export default function Sidebar({ onNavigateSettings }: SidebarProps) {
         {categories.map((cat: any) => (
           <div key={cat.id} className="mb-0.5">
             {/* 分类标题行 */}
-            <button
-              onClick={() => toggleCat(cat.id)}
-              className="nav-item w-full text-left group"
-            >
-              <ChevronDown
-                size={13}
-                className="flex-shrink-0 transition-transform duration-150"
-                style={{ transform: expandedCats.has(cat.id) ? '' : 'rotate(-90deg)', color: 'var(--text-disabled)' }}
-              />
-              {cat.icon
-                ? <span className="text-base leading-none">{cat.icon}</span>
-                : <Folder size={14} className="flex-shrink-0" style={{ color: cat.color || 'var(--text-muted)' }} />
-              }
-              <span className="flex-1 truncate font-medium text-[12.5px]">{cat.name}</span>
-              {cat.unread_count > 0 && (
-                <span className="unread-badge">{cat.unread_count > 99 ? '99+' : cat.unread_count}</span>
-              )}
-            </button>
+            <div className="group flex items-center">
+              <button
+                onClick={() => { setSelectedCategory(cat.id); setFilterStatus('all') }}
+                className={cn('nav-item flex-1 text-left', selectedCategoryId === cat.id && !selectedFeedId && 'active')}
+              >
+                <button
+                  onClick={e => { e.stopPropagation(); toggleCat(cat.id) }}
+                  className="p-0.5 -ml-1 rounded"
+                >
+                  <ChevronDown
+                    size={13}
+                    className="flex-shrink-0 transition-transform duration-150"
+                    style={{ transform: expandedCats.has(cat.id) ? '' : 'rotate(-90deg)', color: 'var(--text-disabled)' }}
+                  />
+                </button>
+                {cat.icon
+                  ? <span className="text-base leading-none">{cat.icon}</span>
+                  : <Folder size={14} className="flex-shrink-0" style={{ color: cat.color || 'var(--text-muted)' }} />
+                }
+                <span className="flex-1 truncate font-medium text-[12.5px]">{cat.name}</span>
+                {cat.unread_count > 0 && (
+                  <span className="unread-badge">{cat.unread_count > 99 ? '99+' : cat.unread_count}</span>
+                )}
+              </button>
+              {/* 删除分类按钮（悬停显示） */}
+              <button
+                onClick={() => {
+                  if (confirm(`确定删除分类「${cat.name}」吗？订阅源不会被删除。`)) {
+                    deleteCategory.mutate(cat.id)
+                  }
+                }}
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded mr-1"
+                style={{ color: 'var(--text-disabled)' }}
+                title="删除分类"
+              >
+                <Trash2 size={11} />
+              </button>
+            </div>
 
             {/* 分类下的订阅源 */}
             {expandedCats.has(cat.id) && (
@@ -153,6 +185,9 @@ export default function Sidebar({ onNavigateSettings }: SidebarProps) {
                     onRefresh={() => refreshFeed.mutate(feed.id)}
                   />
                 ))}
+                {feedsByCat(cat.id).length === 0 && (
+                  <p className="text-[11px] px-2 py-1.5" style={{ color: 'var(--text-disabled)' }}>暂无订阅源</p>
+                )}
               </div>
             )}
           </div>
@@ -183,6 +218,7 @@ export default function Sidebar({ onNavigateSettings }: SidebarProps) {
       </div>
 
       {showAddFeed && <AddFeedDialog onClose={() => setShowAddFeed(false)} />}
+      {showAddCategory && <AddCategoryDialog onClose={() => setShowAddCategory(false)} />}
     </div>
   )
 }

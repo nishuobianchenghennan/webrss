@@ -4,10 +4,11 @@
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Sun, Moon, Monitor, Download, Upload, LogOut, User, Keyboard, Database } from 'lucide-react'
+import { ArrowLeft, Sun, Moon, Monitor, Download, Upload, LogOut, User, Keyboard, Database, Bot } from 'lucide-react'
 import { useAuthStore, usePreferenceStore } from '@/stores'
 import { feedApi } from '@/lib/api'
 import { downloadBlob, cn } from '@/lib/utils'
+import { useAiStore } from '@/stores/aiStore'
 
 const SHORTCUTS = [
   ['J / K', '上/下一篇文章'],
@@ -21,6 +22,7 @@ export default function SettingsPage() {
   const navigate = useNavigate()
   const { logout, user } = useAuthStore()
   const { theme, setTheme } = usePreferenceStore()
+  const { config: aiConfig, setConfig: setAiConfig } = useAiStore()
   const [importing, setImporting] = useState(false)
   const [exporting, setExporting] = useState(false)
 
@@ -175,6 +177,88 @@ export default function SettingsPage() {
                     {label}
                   </button>
                 ))}
+              </div>
+            </div>
+          </section>
+
+          {/* AI 助手配置卡片 */}
+          <section
+            className="rounded-2xl overflow-hidden"
+            style={{ background: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}
+          >
+            <div
+              className="flex items-center gap-2 px-5 py-3"
+              style={{ borderBottom: '1px solid var(--border-subtle)' }}
+            >
+              <Bot size={13} style={{ color: 'var(--text-disabled)' }} />
+              <span
+                className="text-[11px] font-semibold uppercase tracking-wider"
+                style={{ color: 'var(--text-disabled)' }}
+              >
+                AI 助手
+              </span>
+            </div>
+
+            <div className="px-5 py-4 space-y-4">
+              <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+                使用 OpenAI 兼容格式，支持 OpenAI、DeepSeek、Claude 等任意兼容接口。
+              </p>
+
+              {/* API Key */}
+              <div>
+                <label className="block text-[12.5px] font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                  API Key
+                </label>
+                <input
+                  type="password"
+                  value={aiConfig.apiKey}
+                  onChange={e => setAiConfig({ apiKey: e.target.value })}
+                  placeholder="sk-..."
+                  className="w-full px-3 py-2 rounded-lg text-[13px] outline-none"
+                  style={{
+                    background: 'var(--surface-0)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-primary)',
+                  }}
+                />
+              </div>
+
+              {/* Base URL */}
+              <div>
+                <label className="block text-[12.5px] font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                  API Base URL
+                </label>
+                <input
+                  type="text"
+                  value={aiConfig.baseUrl}
+                  onChange={e => setAiConfig({ baseUrl: e.target.value })}
+                  placeholder="https://api.openai.com/v1"
+                  className="w-full px-3 py-2 rounded-lg text-[13px] outline-none"
+                  style={{
+                    background: 'var(--surface-0)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-primary)',
+                  }}
+                />
+              </div>
+
+              {/* 模型 */}
+              <div>
+                <label className="block text-[12.5px] font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                  模型
+                </label>
+                <input
+                  type="text"
+                  value={aiConfig.model}
+                  onChange={e => setAiConfig({ model: e.target.value })}
+                  placeholder="gpt-4o-mini"
+                  className="w-full px-3 py-2 rounded-lg text-[13px] outline-none"
+                  style={{
+                    background: 'var(--surface-0)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-primary)',
+                  }}
+                />
               </div>
             </div>
           </section>
