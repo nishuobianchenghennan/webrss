@@ -239,21 +239,16 @@ export const useAiStore = create<AiState>()(
           })
 
           set((state) => ({
-            providers: state.providers.map((item) => {
-              if (item.id !== providerId) return item
-
-              const nextModels = models.length > 0 ? models : item.models
-              return {
-                ...item,
-                models: nextModels,
-                selectedModel: nextModels.includes(item.selectedModel)
-                  ? item.selectedModel
-                  : (nextModels[0] ?? ''),
-                isLoadingModels: false,
-                modelsError: models.length > 0 ? '' : '未获取到可用模型',
-                lastModelSyncAt: new Date().toISOString(),
-              }
-            }),
+            providers: state.providers.map((item) =>
+              item.id !== providerId
+                ? item
+                : {
+                    ...item,
+                    isLoadingModels: false,
+                    modelsError: models.length > 0 ? '' : '未获取到可用模型',
+                    lastModelSyncAt: new Date().toISOString(),
+                  }
+            ),
           }))
 
           return models
