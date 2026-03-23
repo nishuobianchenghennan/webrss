@@ -22,6 +22,7 @@ export default function ArticleDetail() {
   const toggleStar = useToggleStar()
   const contentRef = useRef<HTMLElement | null>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const iframeRef = useRef<HTMLIFrameElement | null>(null)
   const [scrolled, setScrolled] = useState(false)
 
   // 自动标记已读
@@ -133,7 +134,7 @@ export default function ArticleDetail() {
 
       {/* 文章正文区 */}
       <div className="flex-1 min-h-0 relative">
-        <ArticleTOC contentRef={contentRef} scrollContainerRef={scrollContainerRef} />
+        <ArticleTOC contentRef={contentRef} scrollContainerRef={scrollContainerRef} iframeRef={iframeRef} />
 
         <div
           ref={handleScrollRef}
@@ -220,6 +221,7 @@ export default function ArticleDetail() {
             {article.content ? (
               <div className="max-w-[680px]">
                 <iframe
+                  ref={iframeRef}
                   srcDoc={buildIframeSrcDoc(article.content, isDark)}
                   sandbox="allow-same-origin"
                   className="w-full border-0"
@@ -229,7 +231,7 @@ export default function ArticleDetail() {
                     const doc = iframe.contentDocument
                     if (doc) {
                       // 将 contentRef 指向 iframe 内部 body，供 ArticleTOC 扫描标题
-                      ;(contentRef as React.MutableRefObject<HTMLElement | null>).current = doc.body
+                      contentRef.current = doc.body
                       requestAnimationFrame(() => {
                         const h = doc.documentElement.scrollHeight || doc.body.scrollHeight
                         if (h > 0) iframe.style.height = h + 32 + 'px'
@@ -239,7 +241,7 @@ export default function ArticleDetail() {
                 />
               </div>
             ) : article.summary ? (
-              <div ref={contentRef} className="space-y-4 max-w-[680px]">
+              <div ref={(el) => { contentRef.current = el }} className="space-y-4 max-w-[680px]">
                 <iframe
                   srcDoc={buildIframeSrcDoc(article.summary, isDark)}
                   sandbox="allow-same-origin"

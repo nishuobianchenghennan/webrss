@@ -15,9 +15,10 @@ interface TocItem {
 interface ArticleTOCProps {
   contentRef: React.RefObject<HTMLElement | null>
   scrollContainerRef: React.RefObject<HTMLDivElement | null>
+  iframeRef?: React.RefObject<HTMLIFrameElement | null>
 }
 
-export default function ArticleTOC({ contentRef, scrollContainerRef }: ArticleTOCProps) {
+export default function ArticleTOC({ contentRef, scrollContainerRef, iframeRef }: ArticleTOCProps) {
   const [items, setItems] = useState<TocItem[]>([])
   const [activeId, setActiveId] = useState<string>('')
   const [open, setOpen] = useState(false)
@@ -49,7 +50,11 @@ export default function ArticleTOC({ contentRef, scrollContainerRef }: ArticleTO
     const handleScroll = () => {
       const containerTop = scrollElement.getBoundingClientRect().top
       const nextActiveItem = items.reduce<TocItem | null>((currentItem, item) => {
-        const element = document.getElementById(item.id)
+        // 优先在 iframe 内部查找，回退到外层 document
+        const iframeDoc = iframeRef?.current?.contentDocument
+        const element = iframeDoc
+          ? iframeDoc.getElementById(item.id)
+          : document.getElementById(item.id)
         if (!element) return currentItem
 
         const relativeTop = element.getBoundingClientRect().top - containerTop
@@ -67,13 +72,28 @@ export default function ArticleTOC({ contentRef, scrollContainerRef }: ArticleTO
   if (items.length === 0) return null
 
   const scrollToHeading = (id: string) => {
-    const element = document.getElementById(id)
+    const iframeDoc = iframeRef?.current?.contentDocument
+    const iframeEl = iframeRef?.current
     const scrollElement = scrollContainerRef.current
-    if (!element || !scrollElement) return
+    if (!scrollElement) return
 
-    const elementTop = element.getBoundingClientRect().top
-    const containerTop = scrollElement.getBoundingClientRect().top
-    scrollElement.scrollBy({ top: elementTop - containerTop - 72, behavior: 'smooth' })
+    if (iframeDoc && iframeEl) {
+      // iframe 模式：先将外层滚动到 iframe 顶部，再在 iframe 内部滚动到标题
+      const element = iframeDoc.getElementById(id)
+      if (!element) return
+      const iframeTop = iframeEl.getBoundingClientRect().top
+      const containerTop = scrollElement.getBoundingClientRect().top
+      // 先滚到 iframe 在视口中的位置
+      scrollElement.scrollBy({ top: iframeTop - containerTop - 72, behavior: 'smooth' })
+      // 再在 iframe 内部滚动到目标标题
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    } else {
+      const element = document.getElementById(id)
+      if (!element) return
+      const elementTop = element.getBoundingClientRect().top
+      const containerTop = scrollElement.getBoundingClientRect().top
+      scrollElement.scrollBy({ top: elementTop - containerTop - 72, behavior: 'smooth' })
+    }
     setOpen(false)
   }
 
