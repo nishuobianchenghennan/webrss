@@ -2,7 +2,7 @@
  * RSS/Atom/JSON Feed 解析服务
  */
 
-import { extractFirstImage, sanitizeHtml, generateSummary, countWords, estimateReadTime } from '../utils/html';
+import { extractFirstImage, sanitizeHtml, generateSummary, countWords, estimateReadTime, identifyContentType, normalizePubDate, type ContentType } from '../utils/html';
 
 export interface ParsedFeed {
   title: string;
@@ -21,9 +21,10 @@ export interface ParsedItem {
   content?: string;
   url?: string;
   image?: string;
-  pubDate?: string;
+  pubDate: string | null;  // 归一化后的 ISO 8601 字符串，解析失败为 null
   word_count: number;
   reading_time: number;
+  content_type: ContentType;
 }
 
 /**
@@ -50,21 +51,24 @@ function parseJsonFeed(text: string): ParsedFeed {
   const json = JSON.parse(text);
 
   const items: ParsedItem[] = (json.items || []).map((item: Record<string, string>) => {
-    const content = item.content_html || item.content_text || '';
-    const summary = item.summary || generateSummary(content);
-    const image = item.image || extractFirstImage(content);
+    const rawContent = item.content_html || item.content_text || '';
+    const cleanedContent = sanitizeHtml(rawContent);
+    const summary = item.summary || generateSummary(rawContent);
+    const image = item.image || extractFirstImage(rawContent);
+    const pubDate = normalizePubDate(item.date_published || item.date_modified);
 
     return {
       guid: item.id || item.url || String(Date.now()),
       title: item.title || '无标题',
       author: item.authors?.[0]?.name || item.author?.name,
       summary,
-      content: sanitizeHtml(content),
+      content: cleanedContent,
       url: item.url,
       image: image || undefined,
-      pubDate: item.date_published || item.date_modified,
-      word_count: countWords(content),
-      reading_time: estimateReadTime(content),
+      pubDate,
+      word_count: countWords(rawContent),
+      reading_time: estimateReadTime(rawContent),
+      content_type: identifyContentType(cleanedContent, summary),
     };
   });
 
@@ -154,18 +158,23 @@ function parseRssFeed(xml: string): ParsedFeed {
     const rawGuid = extractTag(itemXml, 'guid') || extractTag(itemXml, 'link');
     const guid = rawGuid || `hash:${extractTag(itemXml, 'title')}:${extractTag(itemXml, 'pubDate')}`;
 
+    const cleanedContent = sanitizeHtml(content);
+    const cleanedSummary = sanitizeHtml(summary);
+    const rawPubDate = extractTag(itemXml, 'pubDate') || extractTag(itemXml, 'dc:date');
+
     return {
       guid,
       title: extractTag(itemXml, 'title') || '无标题',
       author: extractTag(itemXml, 'author') ||
         extractTag(itemXml, 'dc:creator'),
-      summary: sanitizeHtml(summary),
-      content: sanitizeHtml(content),
+      summary: cleanedSummary,
+      content: cleanedContent,
       url: extractTag(itemXml, 'link'),
       image: image || undefined,
-      pubDate: extractTag(itemXml, 'pubDate') || extractTag(itemXml, 'dc:date'),
+      pubDate: normalizePubDate(rawPubDate),
       word_count: countWords(content),
       reading_time: estimateReadTime(content),
+      content_type: identifyContentType(cleanedContent, cleanedSummary),
     };
   });
 
@@ -215,17 +224,22 @@ function parseAtomFeed(xml: string): ParsedFeed {
     const authorXml = entryXml.match(/<author[^>]*>([\s\S]*?)<\/author>/i)?.[1] || '';
     const author = extractTag(authorXml, 'name') || extractTag(entryXml, 'author');
 
+    const cleanedContent = sanitizeHtml(content);
+    const cleanedSummary = sanitizeHtml(summary);
+    const rawPubDate = extractTag(entryXml, 'published') || extractTag(entryXml, 'updated');
+
     return {
       guid,
       title: extractTag(entryXml, 'title') || '无标题',
       author,
-      summary: sanitizeHtml(summary),
-      content: sanitizeHtml(content),
+      summary: cleanedSummary,
+      content: cleanedContent,
       url,
       image: image || undefined,
-      pubDate: extractTag(entryXml, 'published') || extractTag(entryXml, 'updated'),
+      pubDate: normalizePubDate(rawPubDate),
       word_count: countWords(content),
       reading_time: estimateReadTime(content),
+      content_type: identifyContentType(cleanedContent, cleanedSummary),
     };
   });
 

@@ -32,12 +32,12 @@ const TAG_ATTRS: Record<string, Set<string>> = {
 
 /**
  * 净化HTML内容，防止XSS攻击
+ * 先黑名单移除危险标签/属性，再白名单过滤非允许标签（保留内容）
  */
 export function sanitizeHtml(html: string): string {
   if (!html) return '';
 
-  // 使用正则表达式处理HTML（Workers环境中没有DOMParser）
-  // 移除脚本标签及其内容
+  // 第一步：移除有内容的危险标签（含其内部内容）
   let clean = html
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '')
@@ -46,41 +46,123 @@ export function sanitizeHtml(html: string): string {
     .replace(/<embed[\s\S]*?>/gi, '')
     .replace(/<form[\s\S]*?<\/form>/gi, '')
     .replace(/<input[\s\S]*?>/gi, '')
-    .replace(/<button[\s\S]*?<\/button>/gi, '');
+    .replace(/<button[\s\S]*?<\/button>/gi, '')
+    .replace(/<canvas[\s\S]*?<\/canvas>/gi, '')
+    .replace(/<video[\s\S]*?<\/video>/gi, '')
+    .replace(/<audio[\s\S]*?<\/audio>/gi, '')
+    .replace(/<svg[\s\S]*?<\/svg>/gi, '')
+    .replace(/<template[\s\S]*?<\/template>/gi, '')
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, '');
 
-  // 移除所有on*事件属性
+  // 第二步：移除所有 on* 事件属性
   clean = clean.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, '');
   clean = clean.replace(/\s+on\w+\s*=\s*[^\s>]*/gi, '');
 
-  // 过滤 style 属性中的危险值（保留安全的排版样式）
-  clean = clean.replace(/style\s*=\s*["']([^"']*)["']/gi, (match, styles) => {
-    if (DANGEROUS_STYLE_PATTERN.test(styles)) return '';
-    // 移除 margin-left / margin-right 避免内容缩进挤压阅读区
-    const cleaned = styles
-      .replace(/margin-left\s*:[^;]+;?/gi, '')
-      .replace(/margin-right\s*:[^;]+;?/gi, '')
-      .trim();
-    return cleaned ? `style="${cleaned}"` : '';
-  });
-  // 重置正则状态
-  DANGEROUS_STYLE_PATTERN.lastIndex = 0;
+  // 第三步：白名单过滤属性
+  // 匹配所有 HTML 开始标签，对每个标签进行属性过滤
+  clean = clean.replace(/<([a-zA-Z][a-zA-Z0-9]*)([^>]*)>/g, (match, tagName: string, attrsStr: string) => {
+    const tag = tagName.toLowerCase();
 
-  // 移除javascript:协议
-  clean = clean.replace(/href\s*=\s*["']javascript:[^"']*["']/gi, 'href="#"');
-  clean = clean.replace(/src\s*=\s*["']javascript:[^"']*["']/gi, '');
-
-  // 为外部链接添加target="_blank" rel="noopener noreferrer"
-  clean = clean.replace(
-    /<a\s([^>]*href\s*=\s*["']https?:\/\/[^"']*["'][^>]*)>/gi,
-    (match, attrs) => {
-      if (!attrs.includes('target=')) {
-        return `<a ${attrs} target="_blank" rel="noopener noreferrer">`;
-      }
-      return match;
+    // 非白名单标签：保留内容但移除标签本身（相当于 unwrap）
+    if (!ALLOWED_TAGS.has(tag)) {
+      return '';
     }
-  );
+
+    // 对白名单标签：过滤属性
+    const allowedForTag = TAG_ATTRS[tag];
+    const filteredAttrs = attrsStr.replace(
+      /\s+([a-zA-Z][a-zA-Z0-9-]*)\s*=\s*("[^"]*"|'[^']*'|[^\s>]*)/g,
+      (attrMatch, attrName: string, attrValue: string) => {
+        const attr = attrName.toLowerCase();
+        if (!ALLOWED_ATTRS.has(attr) && !(allowedForTag?.has(attr))) {
+          return '';
+        }
+        // style 属性额外过滤危险值
+        if (attr === 'style') {
+          const styles = attrValue.replace(/^["']|["']$/g, '');
+          if (DANGEROUS_STYLE_PATTERN.test(styles)) {
+            DANGEROUS_STYLE_PATTERN.lastIndex = 0;
+            return '';
+          }
+          DANGEROUS_STYLE_PATTERN.lastIndex = 0;
+          const cleaned = styles
+            .replace(/margin-left\s*:[^;]+;?/gi, '')
+            .replace(/margin-right\s*:[^;]+;?/gi, '')
+            .trim();
+          return cleaned ? ` style="${cleaned}"` : '';
+        }
+        // href/src 移除 javascript: 协议
+        if (attr === 'href' || attr === 'src') {
+          const val = attrValue.replace(/^["']|["']$/g, '');
+          if (/^javascript:/i.test(val)) return '';
+        }
+        return attrMatch;
+      }
+    );
+
+    // 为外部 <a> 链接补充 target 和 rel
+    if (tag === 'a' && !filteredAttrs.includes('target=')) {
+      const hrefMatch = filteredAttrs.match(/href\s*=\s*["']https?:\/\//i);
+      if (hrefMatch) {
+        return `<${tag}${filteredAttrs} target="_blank" rel="noopener noreferrer">`;
+      }
+    }
+
+    return `<${tag}${filteredAttrs}>`;
+  });
+
+  // 第四步：清理非白名单的闭合标签
+  clean = clean.replace(/<\/([a-zA-Z][a-zA-Z0-9]*)>/g, (match, tagName: string) => {
+    return ALLOWED_TAGS.has(tagName.toLowerCase()) ? match : '';
+  });
 
   return clean;
+}
+
+/**
+ * 识别文章内容类型
+ * - 'full'：有完整正文（净化后文本超过 200 字）
+ * - 'summary'：仅有摘要/简介
+ * - 'empty'：无任何文字内容
+ */
+export type ContentType = 'full' | 'summary' | 'empty';
+
+export function identifyContentType(content: string | undefined, summary: string | undefined): ContentType {
+  if (content) {
+    const text = extractText(content);
+    if (text.length > 200) return 'full';
+  }
+  if (summary) {
+    const text = extractText(summary);
+    if (text.length > 0) return 'summary';
+  }
+  return 'empty';
+}
+
+/**
+ * 将各种格式的日期字符串归一化为 ISO 8601 字符串
+ * 支持 RFC 2822（RSS）、ISO 8601（Atom/JSON Feed）以及常见变体
+ * 解析失败返回 null
+ */
+export function normalizePubDate(raw: string | undefined | null): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  // 尝试 Date 构造器（覆盖 ISO 8601 和 RFC 2822）
+  const date = new Date(trimmed);
+  if (!isNaN(date.getTime())) {
+    return date.toISOString();
+  }
+
+  // 处理常见非标准格式："DD Mon YYYY HH:MM:SS" 无时区
+  const cleanedNoTz = trimmed.replace(/\s*(\+|-)\d{4}$/, '');
+  const fallback = new Date(cleanedNoTz);
+  if (!isNaN(fallback.getTime())) {
+    return fallback.toISOString();
+  }
+
+  return null;
 }
 
 /**

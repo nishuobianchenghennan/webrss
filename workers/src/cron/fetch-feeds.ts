@@ -1,5 +1,6 @@
 /**
  * 定时抓取 Cron Job
+ * 流程：抓取 RSS -> 识别内容类型 -> 清洗 HTML -> 规范化 -> 存储
  */
 
 import type { Env } from '../types/env';
@@ -16,122 +17,119 @@ interface FeedRow {
   error_count: number;
 }
 
+// 模板字符串内嵌 SQL 单引号，避免字符串拼接截断问题
+const DUE_FEEDS_SQL = `
+  SELECT id, user_id, feed_url, last_fetched_at, fetch_interval, error_count
+  FROM feeds
+  WHERE status = 'active'
+    AND (
+      last_fetched_at IS NULL
+      OR datetime(last_fetched_at, '+' || fetch_interval || ' minutes') <= datetime('now')
+    )
+  ORDER BY last_fetched_at ASC
+  LIMIT 50
+`;
+
+const INSERT_ARTICLE_SQL = `
+  INSERT OR IGNORE INTO articles
+    (id, feed_id, user_id, guid, title, author, summary, content,
+     url, cover_image_url, word_count, reading_time, content_type, published_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`;
+
 /**
  * 定时抓取所有需要更新的订阅源
  */
 export async function fetchFeedsCron(env: Env, ctx: ExecutionContext) {
-  // 查询需要更新的feeds
-  const feeds = await env.DB.prepare(`
-    SELECT id, user_id, feed_url, last_fetched_at, fetch_interval, error_count
-    FROM feeds
-    WHERE status = 'active'
-      AND (
-        last_fetched_at IS NULL
-        OR datetime(last_fetched_at, '+' || fetch_interval || ' minutes') <= datetime('now')
-      )
-    ORDER BY last_fetched_at ASC
-    LIMIT 50
-  `).all<FeedRow>();
+  const feeds = await env.DB.prepare(DUE_FEEDS_SQL).all<FeedRow>();
 
-  const tasks = feeds.results.map(feed =>
+  const tasks = feeds.results.map((feed: FeedRow) =>
     ctx.waitUntil(fetchAndStoreFeed(feed, env))
   );
-
   await Promise.allSettled(tasks);
 }
 
-async function fetchAndStoreFeed(feed: FeedRow, env: Env) {
+async function fetchAndStoreFeed(feed: FeedRow, env: Env): Promise<void> {
   try {
     const response = await fetch(feed.feed_url, {
       headers: {
         'User-Agent': 'RSSPlus/1.0 Feed Fetcher',
-        ...(feed.last_fetched_at
-          ? { 'If-Modified-Since': feed.last_fetched_at }
-          : {}),
+        ...(feed.last_fetched_at ? { 'If-Modified-Since': feed.last_fetched_at } : {}),
       },
-      signal: AbortSignal.timeout(15000), // 15秒超时
+      signal: AbortSignal.timeout(15000),
     });
 
-    // 内容未变化
+    // 内容未变化，只更新抓取时间
     if (response.status === 304) {
-      await env.DB.prepare(
-        'UPDATE feeds SET last_fetched_at = CURRENT_TIMESTAMP WHERE id = ?'
-      ).bind(feed.id).run();
+      await env.DB
+        .prepare('UPDATE feeds SET last_fetched_at = CURRENT_TIMESTAMP WHERE id = ?')
+        .bind(feed.id)
+        .run();
       return;
     }
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      throw new Error('HTTP ' + String(response.status) + ': ' + response.statusText);
     }
 
     const text = await response.text();
-    const parsed = parseFeed(text, response.headers.get('content-type') || '');
+    // parseFeed: 检测格式 -> 提取字段 -> sanitizeHtml -> identifyContentType -> normalizePubDate
+    const parsed = parseFeed(text, response.headers.get('content-type') ?? '');
 
-    let newCount = 0;
     for (const item of parsed.items) {
-      // 缓存封面图
-      let imgUrl = item.image || null;
+      // 封面图代理缓存到 R2，失败回退原始 URL
+      let imgUrl = item.image ?? null;
       if (imgUrl) {
         imgUrl = await proxyAndCacheImage(imgUrl, env);
       }
 
-      const result = await env.DB.prepare(`
-        INSERT INTO articles (
-          id, feed_id, user_id, guid, title, author,
-          summary, content, url, cover_image_url,
-          word_count, reading_time, published_at
+      // guid 唯一约束，冲突则跳过
+      await env.DB
+        .prepare(INSERT_ARTICLE_SQL)
+        .bind(
+          generateId(),
+          feed.id,
+          feed.user_id,
+          item.guid,
+          item.title,
+          item.author ?? null,
+          item.summary ?? null,
+          item.content ?? null,
+          item.url ?? null,
+          imgUrl,
+          item.word_count,
+          item.reading_time,
+          item.content_type,
+          item.pubDate,
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(feed_id, guid) DO NOTHING
-      `).bind(
-        generateId(),
-        feed.id,
-        feed.user_id,
-        item.guid,
-        item.title,
-        item.author || null,
-        item.summary || null,
-        item.content || null,
-        item.url || null,
-        imgUrl,
-        item.word_count,
-        item.reading_time,
-        item.pubDate || null
-      ).run();
-
-      if (result.meta.changes > 0) newCount++;
+        .run();
     }
 
-    // 更新feed状态
-    await env.DB.prepare(`
-      UPDATE feeds SET
-        last_fetched_at = CURRENT_TIMESTAMP,
-        last_published_at = CASE WHEN ? > 0 THEN CURRENT_TIMESTAMP ELSE last_published_at END,
-        error_count = 0,
-        error_message = NULL,
-        fetch_interval = 30,
-        unread_count = unread_count + ?,
-        article_count = article_count + ?,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).bind(newCount, newCount, newCount, feed.id).run();
+    // 更新 feed 统计与抓取时间，清零错误计数
+    await env.DB
+      .prepare(
+        'UPDATE feeds SET' +
+        '  last_fetched_at = CURRENT_TIMESTAMP,' +
+        '  error_count = 0,' +
+        '  article_count = (SELECT COUNT(*) FROM articles WHERE feed_id = ?),' +
+        '  unread_count = (SELECT COUNT(*) FROM articles WHERE feed_id = ? AND is_read = 0)' +
+        ' WHERE id = ?'
+      )
+      .bind(feed.id, feed.id, feed.id)
+      .run();
 
   } catch (err) {
-    const errorMsg = (err as Error).message;
-    // 指数退避：连续失败次数越多，间隔越长，最大24小时
-    const newInterval = Math.min(
-      feed.fetch_interval * Math.pow(2, feed.error_count),
-      1440
-    );
-
-    await env.DB.prepare(`
-      UPDATE feeds SET
-        error_count = error_count + 1,
-        error_message = ?,
-        fetch_interval = ?,
-        status = CASE WHEN error_count >= 10 THEN 'error' ELSE status END,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).bind(errorMsg, Math.round(newInterval), feed.id).run();
+    // 记录错误次数，超过阈值后暂停该 feed
+    console.error('抓取失败 feed=' + feed.id + ':', err);
+    await env.DB
+      .prepare(
+        'UPDATE feeds SET' +
+        '  error_count = error_count + 1,' +
+        '  last_fetched_at = CURRENT_TIMESTAMP,' +
+        "  status = CASE WHEN error_count + 1 >= 10 THEN 'error' ELSE status END" +
+        ' WHERE id = ?'
+      )
+      .bind(feed.id)
+      .run();
   }
 }
