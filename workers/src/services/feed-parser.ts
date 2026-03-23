@@ -2,7 +2,7 @@
  * RSS/Atom/JSON Feed 解析服务
  */
 
-import { extractFirstImage, sanitizeHtml, decodeHtmlEntities, generateSummary, countWords, estimateReadTime, identifyContentType, normalizePubDate, type ContentType } from '../utils/html';
+import { extractFirstImage, decodeHtmlEntities, generateSummary, countWords, estimateReadTime, identifyContentType, normalizePubDate, type ContentType } from '../utils/html';
 
 export interface ParsedFeed {
   title: string;
@@ -52,7 +52,7 @@ function parseJsonFeed(text: string): ParsedFeed {
 
   const items: ParsedItem[] = (json.items || []).map((item: Record<string, string>) => {
     const rawContent = item.content_html || item.content_text || '';
-    const cleanedContent = sanitizeHtml(decodeHtmlEntities(rawContent));
+    const content = decodeHtmlEntities(rawContent);
     const summary = item.summary || generateSummary(rawContent);
     const image = item.image || extractFirstImage(rawContent);
     const pubDate = normalizePubDate(item.date_published || item.date_modified);
@@ -62,13 +62,13 @@ function parseJsonFeed(text: string): ParsedFeed {
       title: item.title || '无标题',
       author: item.authors?.[0]?.name || item.author?.name,
       summary,
-      content: cleanedContent,
+      content,
       url: item.url,
       image: image || undefined,
       pubDate,
       word_count: countWords(rawContent),
       reading_time: estimateReadTime(rawContent),
-      content_type: identifyContentType(cleanedContent, summary),
+      content_type: identifyContentType(content, summary),
     };
   });
 
@@ -160,8 +160,8 @@ function parseRssFeed(xml: string): ParsedFeed {
     const rawGuid = extractTag(itemXml, 'guid') || extractTag(itemXml, 'link');
     const guid = rawGuid || `hash:${extractTag(itemXml, 'title')}:${extractTag(itemXml, 'pubDate')}`;
 
-    const cleanedContent = sanitizeHtml(content);
-    const cleanedSummary = sanitizeHtml(summary);
+    const cleanedContent = content;
+    const cleanedSummary = summary;
     const rawPubDate = extractTag(itemXml, 'pubDate') || extractTag(itemXml, 'dc:date');
 
     return {
@@ -228,8 +228,8 @@ function parseAtomFeed(xml: string): ParsedFeed {
     const authorXml = entryXml.match(/<author[^>]*>([\s\S]*?)<\/author>/i)?.[1] || '';
     const author = extractTag(authorXml, 'name') || extractTag(entryXml, 'author');
 
-    const cleanedContent = sanitizeHtml(content);
-    const cleanedSummary = sanitizeHtml(summary);
+    const cleanedContent = content;
+    const cleanedSummary = summary;
     const rawPubDate = extractTag(entryXml, 'published') || extractTag(entryXml, 'updated');
 
     return {

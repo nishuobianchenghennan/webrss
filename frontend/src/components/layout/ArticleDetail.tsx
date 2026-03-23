@@ -223,11 +223,17 @@ export default function ArticleDetail() {
                   srcDoc={buildIframeSrcDoc(article.content, isDark)}
                   sandbox="allow-same-origin"
                   className="w-full border-0"
-                  style={{ minHeight: '400px' }}
+                  style={{ height: '100vh' }}
                   onLoad={(e) => {
                     const iframe = e.currentTarget
-                    const height = iframe.contentDocument?.body?.scrollHeight
-                    if (height) iframe.style.height = height + 'px'
+                    const doc = iframe.contentDocument
+                    if (doc) {
+                      // 等布局稳定后再测量高度
+                      requestAnimationFrame(() => {
+                        const h = doc.documentElement.scrollHeight || doc.body.scrollHeight
+                        if (h > 0) iframe.style.height = h + 32 + 'px'
+                      })
+                    }
                   }}
                 />
               </div>
@@ -237,11 +243,16 @@ export default function ArticleDetail() {
                   srcDoc={buildIframeSrcDoc(article.summary, isDark)}
                   sandbox="allow-same-origin"
                   className="w-full border-0"
-                  style={{ minHeight: '200px' }}
+                  style={{ height: '50vh' }}
                   onLoad={(e) => {
                     const iframe = e.currentTarget
-                    const height = iframe.contentDocument?.body?.scrollHeight
-                    if (height) iframe.style.height = height + 'px'
+                    const doc = iframe.contentDocument
+                    if (doc) {
+                      requestAnimationFrame(() => {
+                        const h = doc.documentElement.scrollHeight || doc.body.scrollHeight
+                        if (h > 0) iframe.style.height = h + 32 + 'px'
+                      })
+                    }
                   }}
                 />
                 {article.url && (

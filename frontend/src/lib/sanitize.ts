@@ -27,11 +27,23 @@ const REMOVE_TEXT_PATTERNS: RegExp[] = [
 ];
 
 /**
+ * 解码 HTML 实体（客户端版本，用于数据库内容二次编码的场景）
+ */
+function decodeEntities(str: string): string {
+  if (!str || typeof document === 'undefined') return str;
+  const txt = document.createElement('textarea');
+  txt.innerHTML = str;
+  return txt.value;
+}
+
+/**
  * 构造 iframe srcdoc 内容，将文章 HTML 包裹为完整页面
  * iframe 拥有独立 document，原始行内样式和微信 CSS 完全生效
  */
 export function buildIframeSrcDoc(html: string, darkMode = false): string {
-  const cleaned = cleanArticleHtml(html);
+  // 数据库存储时内容可能被二次 HTML 实体编码，先解码还原为真实 HTML
+  const decoded = decodeEntities(html);
+  const cleaned = cleanArticleHtml(decoded);
   return `<!DOCTYPE html>
 <html lang="zh">
 <head>
