@@ -3,20 +3,27 @@
  * 在浏览器 DOM 中解析并清洗文章 HTML，去除微信等来源的推广/噪声内容
  */
 
-// 需要完整移除的 class 或 id（微信公众号常见噪声元素）
+// 需要完整移除的选择器（微信公众号常见噪声元素）
 const REMOVE_SELECTORS = [
-  '.mp_profile_iframe_wrp',  // 公众号关注卡片
-  '.media_tool_meta',        // 原文链接区域
-  'p[style*="display: none"]', // 隐藏段落
+  '.mp_profile_iframe_wrp',          // 公众号关注卡片
+  '.media_tool_meta',                // 原文链接区域（旧版 class）
+  'a.media_tool_meta',               // 原文链接 <a> 变体
+  '[class*="media_tool_meta"]',      // class 含 media_tool_meta 的任意元素
+  'p[style*="display: none"]',       // 隐藏段落
   'p[style*="display:none"]',
+  '[style*="display: none"]',
+  '[style*="display:none"]',
 ];
 
 // 需要移除的文本内容特征（结尾推广文案）
-const REMOVE_TEXT_PATTERNS = [
-  /⭐.*?⭐/s,
-  /星标.*?不错过/,
-  /觉得好看.*?在看/,
+// 仅对短文本节点（< 200 字）生效，避免误删包含全文的容器
+const REMOVE_TEXT_PATTERNS: RegExp[] = [
+  /\u2b50/,
+  /\u26a1/,
+  /星标.*?不错过/s,
+  /觉得好看.*?在看/s,
   /本文不构成个人投资建议/,
+  /点.{0,4}在看/,
 ];
 
 /**
@@ -33,27 +40,38 @@ export function cleanArticleHtml(html: string): string {
 
   // 1. 移除已知噪声选择器
   REMOVE_SELECTORS.forEach(selector => {
-    body.querySelectorAll(selector).forEach(el => el.remove());
+    try {
+      body.querySelectorAll(selector).forEach(el => el.remove());
+    } catch {
+      // 忽略无效选择器
+    }
   });
 
-  // 2. 移除包含推广文本的段落/section
-  body.querySelectorAll('p, section, div').forEach(el => {
-    const text = el.textContent || '';
-    if (REMOVE_TEXT_PATTERNS.some(p => p.test(text))) {
+  // 2. 移除包含推广文本的短文本节点
+  // 限制在 < 200 字的叶子级节点，防止误删包含全文内容的容器
+  body.querySelectorAll('p, li, span, section, div').forEach(el => {
+    if (!el.isConnected) return;
+    const text = (el.textContent || '').trim();
+    if (text.length > 0 && text.length < 200 && REMOVE_TEXT_PATTERNS.some(p => p.test(text))) {
       el.remove();
     }
   });
 
-  // 3. 移除尾部跟踪图片（1x1 像素）
+  // 3. 移除尾部跟踪图片（1x1 像素或隐藏图片）
   body.querySelectorAll('img').forEach(img => {
     const w = img.getAttribute('width');
     const h = img.getAttribute('height');
     const style = img.getAttribute('style') || '';
+    const src = img.getAttribute('src') || '';
     if (
       (w === '1' || w === '1px') ||
       (h === '1' || h === '1px') ||
       style.includes('width: 1px') ||
-      style.includes('display: none')
+      style.includes('height: 1px') ||
+      style.includes('display: none') ||
+      style.includes('display:none') ||
+      // 常见统计像素路径特征
+      /\/rss_static\/|tracking|pixel|beacon/i.test(src)
     ) {
       img.remove();
     }
@@ -61,6 +79,7 @@ export function cleanArticleHtml(html: string): string {
 
   // 4. 移除空的 section/div（只剩 <br> 或纯空白）
   body.querySelectorAll('section, div').forEach(el => {
+    if (!el.isConnected) return;
     const inner = el.innerHTML.replace(/<br\s*\/?>/gi, '').trim();
     if (!inner) el.remove();
   });
