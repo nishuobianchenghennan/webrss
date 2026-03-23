@@ -20,7 +20,7 @@ export default function ArticleDetail() {
   const article = (articleData as any)?.data || articleData
   const markRead = useMarkRead()
   const toggleStar = useToggleStar()
-  const contentRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLElement | null>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [scrolled, setScrolled] = useState(false)
 
@@ -218,7 +218,7 @@ export default function ArticleDetail() {
 
             {/* 文章正文 */}
             {article.content ? (
-              <div ref={contentRef} className="max-w-[680px]">
+              <div className="max-w-[680px]">
                 <iframe
                   srcDoc={buildIframeSrcDoc(article.content, isDark)}
                   sandbox="allow-same-origin"
@@ -228,7 +228,8 @@ export default function ArticleDetail() {
                     const iframe = e.currentTarget
                     const doc = iframe.contentDocument
                     if (doc) {
-                      // 等布局稳定后再测量高度
+                      // 将 contentRef 指向 iframe 内部 body，供 ArticleTOC 扫描标题
+                      ;(contentRef as React.MutableRefObject<HTMLElement | null>).current = doc.body
                       requestAnimationFrame(() => {
                         const h = doc.documentElement.scrollHeight || doc.body.scrollHeight
                         if (h > 0) iframe.style.height = h + 32 + 'px'

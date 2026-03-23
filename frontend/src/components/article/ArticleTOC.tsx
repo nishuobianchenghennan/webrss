@@ -13,7 +13,7 @@ interface TocItem {
 }
 
 interface ArticleTOCProps {
-  contentRef: React.RefObject<HTMLDivElement | null>
+  contentRef: React.RefObject<HTMLElement | null>
   scrollContainerRef: React.RefObject<HTMLDivElement | null>
 }
 
