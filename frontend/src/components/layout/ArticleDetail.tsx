@@ -10,6 +10,7 @@ import { useArticle, useMarkRead, useToggleStar } from '@/hooks/useArticles'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { formatPublishedAt, formatReadingTime, formatWordCount } from '@/lib/date'
 import ArticleTOC from '@/components/article/ArticleTOC'
+import { cleanArticleHtml } from '@/lib/sanitize'
 
 export default function ArticleDetail() {
   const { selectedArticleId, setSelectedArticle } = useReadingStore()
@@ -218,13 +219,13 @@ export default function ArticleDetail() {
               <div
                 ref={contentRef}
                 className="article-content max-w-[680px]"
-                dangerouslySetInnerHTML={{ __html: article.content }}
+                dangerouslySetInnerHTML={{ __html: cleanArticleHtml(article.content) }}
               />
             ) : article.summary ? (
               <div ref={contentRef} className="space-y-4 max-w-[680px]">
                 <div
                   className="article-content"
-                  dangerouslySetInnerHTML={{ __html: article.summary }}
+                  dangerouslySetInnerHTML={{ __html: cleanArticleHtml(article.summary) }}
                 />
                 {article.url && (
                   <a
