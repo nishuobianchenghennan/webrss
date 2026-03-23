@@ -27,6 +27,53 @@ const REMOVE_TEXT_PATTERNS: RegExp[] = [
 ];
 
 /**
+ * 构造 iframe srcdoc 内容，将文章 HTML 包裹为完整页面
+ * iframe 拥有独立 document，原始行内样式和微信 CSS 完全生效
+ */
+export function buildIframeSrcDoc(html: string, darkMode = false): string {
+  const cleaned = cleanArticleHtml(html);
+  return `<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: ${darkMode ? '#16130f' : '#faf9f7'};
+    color: ${darkMode ? '#f5f3ef' : '#1a1714'};
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif;
+    font-size: 15px;
+    line-height: 1.75;
+    word-break: break-word;
+  }
+  body { padding: 0 4px 32px; }
+  img { max-width: 100%; height: auto; border-radius: 6px; }
+  a { color: ${darkMode ? '#818cf8' : '#444ce7'}; }
+  pre, code {
+    background: ${darkMode ? '#27231b' : '#f3f1ec'};
+    border-radius: 4px;
+    padding: 2px 5px;
+    font-size: 0.9em;
+  }
+  pre { padding: 12px; overflow-x: auto; }
+  blockquote {
+    margin: 0; padding-left: 1em;
+    border-left: 3px solid ${darkMode ? '#3a3328' : '#d6d0c4'};
+    color: ${darkMode ? '#9a8f7e' : '#7d7060'};
+  }
+  table { border-collapse: collapse; width: 100%; }
+  td, th { border: 1px solid ${darkMode ? '#3a3328' : '#d6d0c4'}; padding: 6px 10px; }
+  /* 修正微信常见的 margin/padding 过大问题 */
+  section { margin: 0 !important; padding: 0 !important; }
+</style>
+</head>
+<body>${cleaned}</body>
+</html>`;
+}
+
+/**
  * 清洗文章 HTML，返回净化后的 HTML 字符串
  * 利用浏览器内置 DOMParser，不依赖第三方库
  */

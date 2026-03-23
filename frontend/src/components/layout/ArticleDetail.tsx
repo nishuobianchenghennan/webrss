@@ -5,15 +5,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { Star, ExternalLink, BookOpen, Clock, ArrowLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useReadingStore } from '@/stores'
+import { useReadingStore, usePreferenceStore, getResolvedTheme } from '@/stores'
 import { useArticle, useMarkRead, useToggleStar } from '@/hooks/useArticles'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { formatPublishedAt, formatReadingTime, formatWordCount } from '@/lib/date'
 import ArticleTOC from '@/components/article/ArticleTOC'
-import { cleanArticleHtml } from '@/lib/sanitize'
+import { buildIframeSrcDoc } from '@/lib/sanitize'
 
 export default function ArticleDetail() {
   const { selectedArticleId, setSelectedArticle } = useReadingStore()
+  const { theme } = usePreferenceStore()
+  const isDark = getResolvedTheme(theme) === 'dark'
   const { data: articleData, isLoading } = useArticle(selectedArticleId)
   const article = (articleData as any)?.data || articleData
   const markRead = useMarkRead()
@@ -216,16 +218,31 @@ export default function ArticleDetail() {
 
             {/* 文章正文 */}
             {article.content ? (
-              <div
-                ref={contentRef}
-                className="article-content max-w-[680px]"
-                dangerouslySetInnerHTML={{ __html: cleanArticleHtml(article.content) }}
-              />
+              <div ref={contentRef} className="max-w-[680px]">
+                <iframe
+                  srcDoc={buildIframeSrcDoc(article.content, isDark)}
+                  sandbox="allow-same-origin"
+                  className="w-full border-0"
+                  style={{ minHeight: '400px' }}
+                  onLoad={(e) => {
+                    const iframe = e.currentTarget
+                    const height = iframe.contentDocument?.body?.scrollHeight
+                    if (height) iframe.style.height = height + 'px'
+                  }}
+                />
+              </div>
             ) : article.summary ? (
               <div ref={contentRef} className="space-y-4 max-w-[680px]">
-                <div
-                  className="article-content"
-                  dangerouslySetInnerHTML={{ __html: cleanArticleHtml(article.summary) }}
+                <iframe
+                  srcDoc={buildIframeSrcDoc(article.summary, isDark)}
+                  sandbox="allow-same-origin"
+                  className="w-full border-0"
+                  style={{ minHeight: '200px' }}
+                  onLoad={(e) => {
+                    const iframe = e.currentTarget
+                    const height = iframe.contentDocument?.body?.scrollHeight
+                    if (height) iframe.style.height = height + 'px'
+                  }}
                 />
                 {article.url && (
                   <a
