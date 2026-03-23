@@ -2,7 +2,7 @@
  * RSS/Atom/JSON Feed 解析服务
  */
 
-import { extractFirstImage, sanitizeHtml, generateSummary, countWords, estimateReadTime, identifyContentType, normalizePubDate, type ContentType } from '../utils/html';
+import { extractFirstImage, sanitizeHtml, decodeHtmlEntities, generateSummary, countWords, estimateReadTime, identifyContentType, normalizePubDate, type ContentType } from '../utils/html';
 
 export interface ParsedFeed {
   title: string;
@@ -52,7 +52,7 @@ function parseJsonFeed(text: string): ParsedFeed {
 
   const items: ParsedItem[] = (json.items || []).map((item: Record<string, string>) => {
     const rawContent = item.content_html || item.content_text || '';
-    const cleanedContent = sanitizeHtml(rawContent);
+    const cleanedContent = sanitizeHtml(decodeHtmlEntities(rawContent));
     const summary = item.summary || generateSummary(rawContent);
     const image = item.image || extractFirstImage(rawContent);
     const pubDate = normalizePubDate(item.date_published || item.date_modified);
@@ -145,9 +145,11 @@ function parseRssFeed(xml: string): ParsedFeed {
 
   const items: ParsedItem[] = itemMatches.map(match => {
     const itemXml = match[1];
-    const content = extractTag(itemXml, 'content:encoded') ||
-      extractTag(itemXml, 'description') || '';
-    const summary = extractTag(itemXml, 'description') || generateSummary(content);
+    const content = decodeHtmlEntities(
+      extractTag(itemXml, 'content:encoded') ||
+      extractTag(itemXml, 'description') || ''
+    );
+    const summary = decodeHtmlEntities(extractTag(itemXml, 'description')) || generateSummary(content);
 
     // 提取图片：优先使用enclosure或media:content
     const enclosureUrl = extractAttr(itemXml, 'enclosure', 'url');
@@ -207,8 +209,10 @@ function parseAtomFeed(xml: string): ParsedFeed {
 
   const items: ParsedItem[] = entryMatches.map(match => {
     const entryXml = match[1];
-    const content = extractTag(entryXml, 'content') || extractTag(entryXml, 'summary') || '';
-    const summary = extractTag(entryXml, 'summary') || generateSummary(content);
+    const content = decodeHtmlEntities(
+      extractTag(entryXml, 'content') || extractTag(entryXml, 'summary') || ''
+    );
+    const summary = decodeHtmlEntities(extractTag(entryXml, 'summary')) || generateSummary(content);
     const image = extractFirstImage(content);
 
     // 提取链接

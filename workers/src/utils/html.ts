@@ -12,7 +12,7 @@ const ALLOWED_TAGS = new Set([
   'a', 'img', 'figure', 'figcaption',
   'table', 'thead', 'tbody', 'tr', 'th', 'td',
   'div', 'span', 'section', 'article', 'aside',
-  'sup', 'sub', 'small', 'abbr', 'cite', 'q',
+  'sup', 'sub', 'small', 'abbr', 'cite', 'q', 'mark',
 ]);
 
 // 允许的属性（全局）
@@ -31,6 +31,24 @@ const TAG_ATTRS: Record<string, Set<string>> = {
 };
 
 /**
+ * 解码 HTML 实体（用于 XML 非 CDATA 包裹的内容）
+ * Workers 环境无 DOM，手动处理常见实体
+ */
+export function decodeHtmlEntities(str: string): string {
+  if (!str) return str;
+  return str
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, '\u00a0')
+    .replace(/&#(\d+);/g, (_, code: string) => String.fromCharCode(Number(code)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex: string) => String.fromCharCode(parseInt(hex, 16)));
+}
+
+/**
  * 净化HTML内容，防止XSS攻击
  * 先黑名单移除危险标签/属性，再白名单过滤非允许标签（保留内容）
  */
@@ -38,6 +56,7 @@ export function sanitizeHtml(html: string): string {
   if (!html) return '';
 
   // 第一步：移除有内容的危险标签（含其内部内容）
+  // 同时移除 RSS 文章头部语义标签：address（作者）、time（日期）、footer（文章脚注）
   let clean = html
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '')
@@ -52,7 +71,10 @@ export function sanitizeHtml(html: string): string {
     .replace(/<audio[\s\S]*?<\/audio>/gi, '')
     .replace(/<svg[\s\S]*?<\/svg>/gi, '')
     .replace(/<template[\s\S]*?<\/template>/gi, '')
-    .replace(/<noscript[\s\S]*?<\/noscript>/gi, '');
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, '')
+    .replace(/<address[\s\S]*?<\/address>/gi, '')
+    .replace(/<time[\s\S]*?<\/time>/gi, '')
+    .replace(/<footer[\s\S]*?<\/footer>/gi, '');
 
   // 第二步：移除所有 on* 事件属性
   clean = clean.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, '');
