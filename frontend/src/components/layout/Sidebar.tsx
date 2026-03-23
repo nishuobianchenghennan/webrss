@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 import { useReadingStore } from '@/stores'
 import { useFeeds } from '@/hooks/useFeeds'
 import { useCategories, useDeleteCategory } from '@/hooks/useCategories'
-import { useRefreshFeed } from '@/hooks/useFeeds'
+import { useRefreshFeed, useDeleteFeed } from '@/hooks/useFeeds'
 import AddFeedDialog from '@/components/feed/AddFeedDialog'
 import AddCategoryDialog from '@/components/feed/AddCategoryDialog'
 
@@ -31,6 +31,7 @@ export default function Sidebar({ onNavigateSettings }: SidebarProps) {
   const [showAddCategory, setShowAddCategory] = useState(false)
   const deleteCategory = useDeleteCategory()
   const refreshFeed = useRefreshFeed()
+  const deleteFeed = useDeleteFeed()
 
   const totalUnread = feeds.reduce((sum: number, f: any) => sum + (f.unread_count || 0), 0)
 
@@ -125,6 +126,7 @@ export default function Sidebar({ onNavigateSettings }: SidebarProps) {
                 selected={selectedFeedId === feed.id}
                 onSelect={() => { setSelectedFeed(feed.id); setFilterStatus('all') }}
                 onRefresh={() => refreshFeed.mutate(feed.id)}
+                onDelete={() => deleteFeed.mutate(feed.id)}
               />
             ))}
           </div>
@@ -183,6 +185,7 @@ export default function Sidebar({ onNavigateSettings }: SidebarProps) {
                     selected={selectedFeedId === feed.id}
                     onSelect={() => { setSelectedFeed(feed.id); setFilterStatus('all') }}
                     onRefresh={() => refreshFeed.mutate(feed.id)}
+                    onDelete={() => deleteFeed.mutate(feed.id)}
                   />
                 ))}
                 {feedsByCat(cat.id).length === 0 && (
@@ -225,9 +228,9 @@ export default function Sidebar({ onNavigateSettings }: SidebarProps) {
 
 // 订阅源导航项
 function FeedNavItem({
-  feed, selected, onSelect, onRefresh
+  feed, selected, onSelect, onRefresh, onDelete
 }: {
-  feed: any; selected: boolean; onSelect: () => void; onRefresh: () => void
+  feed: any; selected: boolean; onSelect: () => void; onRefresh: () => void; onDelete: () => void
 }) {
   const [hovered, setHovered] = useState(false)
 
@@ -255,16 +258,26 @@ function FeedNavItem({
 
       <span className="flex-1 truncate">{feed.title}</span>
 
-      {/* 未读数 / 刷新按钮 */}
+      {/* 未读数 / 刷新 / 删除按钮 */}
       {hovered ? (
-        <button
-          onClick={(e) => { e.stopPropagation(); onRefresh() }}
-          className="w-5 h-5 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 transition-opacity"
-          title="刷新"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          <RefreshCw size={11} />
-        </button>
+        <div className="flex items-center gap-0.5">
+          <button
+            onClick={(e) => { e.stopPropagation(); onRefresh() }}
+            className="w-5 h-5 flex items-center justify-center rounded"
+            title="刷新"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            <RefreshCw size={11} />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete() }}
+            className="w-5 h-5 flex items-center justify-center rounded"
+            title="删除"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            <Trash2 size={11} />
+          </button>
+        </div>
       ) : (
         feed.unread_count > 0 && (
           <span className="unread-badge">{feed.unread_count > 99 ? '99+' : feed.unread_count}</span>
