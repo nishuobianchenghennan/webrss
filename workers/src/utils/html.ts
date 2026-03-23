@@ -16,7 +16,10 @@ const ALLOWED_TAGS = new Set([
 ]);
 
 // 允许的属性（全局）
-const ALLOWED_ATTRS = new Set(['class', 'id', 'title', 'lang']);
+const ALLOWED_ATTRS = new Set(['class', 'id', 'title', 'lang', 'style']);
+
+// 危险的 style 属性值模式（CSS 注入 / XSS）
+const DANGEROUS_STYLE_PATTERN = /expression|javascript|behaviour|vbscript|@import|binding/gi;
 
 // 特定标签允许的额外属性
 const TAG_ATTRS: Record<string, Set<string>> = {
@@ -48,6 +51,19 @@ export function sanitizeHtml(html: string): string {
   // 移除所有on*事件属性
   clean = clean.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, '');
   clean = clean.replace(/\s+on\w+\s*=\s*[^\s>]*/gi, '');
+
+  // 过滤 style 属性中的危险值（保留安全的排版样式）
+  clean = clean.replace(/style\s*=\s*["']([^"']*)["']/gi, (match, styles) => {
+    if (DANGEROUS_STYLE_PATTERN.test(styles)) return '';
+    // 移除 margin-left / margin-right 避免内容缩进挤压阅读区
+    const cleaned = styles
+      .replace(/margin-left\s*:[^;]+;?/gi, '')
+      .replace(/margin-right\s*:[^;]+;?/gi, '')
+      .trim();
+    return cleaned ? `style="${cleaned}"` : '';
+  });
+  // 重置正则状态
+  DANGEROUS_STYLE_PATTERN.lastIndex = 0;
 
   // 移除javascript:协议
   clean = clean.replace(/href\s*=\s*["']javascript:[^"']*["']/gi, 'href="#"');

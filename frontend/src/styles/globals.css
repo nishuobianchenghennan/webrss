@@ -296,6 +296,27 @@
   }
   .article-content div > p:first-child { margin-top: 0; }
   .article-content > div { line-height: 1.85; }
+  /* 微信公众号等来源的 section 容器 */
+  .article-content section {
+    display: block;
+    margin-bottom: 1em;
+    line-height: 1.85;
+  }
+  /* 去除多余的内联 margin（来源文章常用 margin-left/right: 16px）*/
+  .article-content section,
+  .article-content div {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  /* span 内字号强制继承，避免来源 font-size: 15px 过小 */
+  .article-content span {
+    font-size: inherit;
+  }
+  /* 文章内图片全宽响应式 */
+  .article-content img {
+    max-width: 100%;
+    height: auto;
+  }
 
   /* ============================
      模态框 / 对话框
