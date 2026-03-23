@@ -222,12 +222,10 @@ export default function ArticleDetail() {
               />
             ) : article.summary ? (
               <div ref={contentRef} className="space-y-4 max-w-[680px]">
-                <p
-                  className="text-[16px] leading-[1.85]"
-                  style={{ color: 'var(--text-secondary)', fontFamily: 'Lora, "Noto Serif SC", serif' }}
-                >
-                  {article.summary}
-                </p>
+                <div
+                  className="article-content"
+                  dangerouslySetInnerHTML={{ __html: article.summary }}
+                />
                 {article.url && (
                   <a
                     href={article.url}
