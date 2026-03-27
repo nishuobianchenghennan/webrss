@@ -21,11 +21,14 @@ interface FeedRow {
 const DUE_FEEDS_SQL = `
   SELECT id, user_id, feed_url, last_fetched_at, fetch_interval, error_count
   FROM feeds
-  WHERE status = 'active'
-    AND (
-      last_fetched_at IS NULL
-      OR datetime(last_fetched_at, '+' || fetch_interval || ' minutes') <= datetime('now')
-    )
+  WHERE (
+    status = 'active'
+    OR (status = 'error' AND datetime(last_fetched_at, '+1440 minutes') <= datetime('now'))
+  )
+  AND (
+    last_fetched_at IS NULL
+    OR datetime(last_fetched_at, '+' || fetch_interval || ' minutes') <= datetime('now')
+  )
   ORDER BY last_fetched_at ASC
   LIMIT 50
 `;
@@ -43,18 +46,20 @@ const INSERT_ARTICLE_SQL = `
 export async function fetchFeedsCron(env: Env, ctx: ExecutionContext) {
   const feeds = await env.DB.prepare(DUE_FEEDS_SQL).all<FeedRow>();
 
-  const tasks = feeds.results.map((feed: FeedRow) =>
-    ctx.waitUntil(fetchAndStoreFeed(feed, env))
-  );
-  await Promise.allSettled(tasks);
+  const promises = feeds.results.map((feed: FeedRow) => fetchAndStoreFeed(feed, env));
+  ctx.waitUntil(Promise.allSettled(promises));
+  await Promise.allSettled(promises);
 }
 
 async function fetchAndStoreFeed(feed: FeedRow, env: Env): Promise<void> {
   try {
+    const ifModifiedSince = feed.last_fetched_at
+      ? new Date(feed.last_fetched_at.replace(' ', 'T') + 'Z').toUTCString()
+      : null;
     const response = await fetch(feed.feed_url, {
       headers: {
         'User-Agent': 'RSSPlus/1.0 Feed Fetcher',
-        ...(feed.last_fetched_at ? { 'If-Modified-Since': feed.last_fetched_at } : {}),
+        ...(ifModifiedSince ? { 'If-Modified-Since': ifModifiedSince } : {}),
       },
       signal: AbortSignal.timeout(15000),
     });
@@ -105,10 +110,11 @@ async function fetchAndStoreFeed(feed: FeedRow, env: Env): Promise<void> {
         .run();
     }
 
-    // 更新 feed 统计与抓取时间，清零错误计数
+    // 更新 feed 统计与抓取时间，清零错误计数，恢复 active 状态
     await env.DB
       .prepare(
         'UPDATE feeds SET' +
+        "  status = 'active'," +
         '  last_fetched_at = CURRENT_TIMESTAMP,' +
         '  error_count = 0,' +
         '  article_count = (SELECT COUNT(*) FROM articles WHERE feed_id = ?),' +
