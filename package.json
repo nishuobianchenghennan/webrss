@@ -4,6 +4,11 @@
   "private": true,
   "description": "RSS Web Reader - Cloudflare全栈方案",
   "scripts": {
-    "build": "cd frontend && npm install --legacy-peer-deps && npm run build"
+    "build": "cd frontend && npm install --legacy-peer-deps && npm run build",
+    "deploy": "wrangler deploy",
+    "preview": "wrangler dev"
+  },
+  "devDependencies": {
+    "wrangler": "^4.76.0"
   }
 }
